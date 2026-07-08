@@ -51,6 +51,70 @@ status: draft
 """,
     "system-design.md": """# System Design
 
+## Technology Strategy
+
+### Existing Stack
+
+- frontend: not recorded
+- backend: not recorded
+- database: not recorded
+- styling: not recorded
+- testing: not recorded
+- build: not recorded
+- deployment: not recorded
+
+### Selected Stack
+
+- frontend: not recorded
+- backend: not recorded
+- database: not recorded
+- styling: not recorded
+- testing: not recorded
+- validation: not recorded
+- deployment assumption: not recorded
+
+### Verification Commands
+
+- install: not recorded
+- build: not recorded
+- test: not recorded
+- lint/typecheck: not recorded
+- browser/manual: not recorded
+
+## Interface Design Baseline
+
+### Product Shape
+
+- audience: not recorded
+- primary jobs: not recorded
+- density: not recorded
+- visual tone: not recorded
+
+### User Flows
+
+| Flow | Entry | Core Steps | Success State | Requirement IDs |
+|---|---|---|---|---|
+
+### Pages
+
+| Page | Purpose | Primary Actions | Key States | Requirement IDs |
+|---|---|---|---|---|
+
+### Layout Direction
+
+- navigation: not recorded
+- page structure: not recorded
+- information hierarchy: not recorded
+- desktop constraints: not recorded
+- mobile constraints: not recorded
+
+### UI Verification
+
+- browser checks: not recorded
+- screenshot or visual checks: not recorded
+- responsive checks: not recorded
+- accessibility checks: not recorded
+
 ## Pages
 
 - None recorded yet.
@@ -111,6 +175,7 @@ active_parallel_group: null
 ## Active Constraints
 
 - one task per worker
+- continue ready tasks until blocked or delivered
 - no unplanned full-project generation
 - every task maps to requirements
 - update state before moving on

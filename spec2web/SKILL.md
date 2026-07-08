@@ -1,6 +1,6 @@
 ---
 name: spec2web
-description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through project rules, requirement baseline, system design, task breakdown, role-separated loops, worktree isolation, validation, repair, and delivery reporting.
+description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through project rules, requirement baseline, technology strategy, interface design, system design, task breakdown, role-separated loops, worktree isolation, validation, repair, and delivery reporting.
 ---
 
 # Spec2Web
@@ -48,11 +48,13 @@ Follow this sequence:
 
 1. Project Rules
 2. Requirement Baseline
-3. System Design
-4. Task Breakdown
-5. Task Execution Loop
-6. Integration Validation
-7. Delivery
+3. Technology Strategy
+4. Interface Design Baseline
+5. System Design
+6. Task Breakdown
+7. Task Execution Loop
+8. Integration Validation
+9. Delivery
 
 Each task-level loop follows:
 
@@ -67,6 +69,20 @@ Read State
 -> Serial Merge or Repair or Record
 -> Update State
 ```
+
+## Continuation Policy
+
+After a task is completed and state is updated, continue automatically when another task is ready.
+
+Continue only when:
+
+- `loop-state.md` has `status: active`,
+- the next task has complete dependencies,
+- requirement IDs and verification are present,
+- current verification and review passed,
+- no stop condition applies.
+
+Stop and ask the user when requirements are unclear, design changes are needed, repair budget is exhausted, a Git conflict cannot be resolved safely, credentials or paid resources are needed, or no ready task exists. When no tasks remain, move to Integration Validation and Delivery.
 
 ## Project Rules
 
@@ -94,6 +110,18 @@ Maintain project memory in `spec2web/`:
 Conversation context does not replace these files. On resume, first read `project-rules.md`, `task-plan.md`, and `loop-state.md`.
 
 For templates and update rules, read `references/state-files.md`.
+
+## Technology Strategy
+
+During Requirement Baseline and System Design, recommend a technology stack before task breakdown. For existing projects, prefer the current stack unless there is a clear reason to change. For new projects, compare 2-3 viable stacks, recommend one, record tradeoffs, and write the confirmed choice into `system-design.md`.
+
+For stack selection rules and templates, read `references/technology-strategy.md`.
+
+## Interface Design Baseline
+
+Before frontend implementation tasks, define the interface baseline in `system-design.md`: pages, user flows, layout direction, core states, component conventions, responsive constraints, and UI verification. Do not let frontend tasks begin from vague page names alone.
+
+For interface planning rules and templates, read `references/interface-design.md`.
 
 ## Loop Engineering Model
 

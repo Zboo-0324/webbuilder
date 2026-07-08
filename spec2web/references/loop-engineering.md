@@ -109,6 +109,30 @@ Every loop ends with a state update:
 
 If state is not updated, the loop is not complete.
 
+## Continuation Policy
+
+After a task is completed, the Orchestrator should continue to the next ready task instead of stopping by default.
+
+Continue automatically when:
+
+- `loop-state.md` has `status: active`
+- the current task passed verification and review
+- state files have been updated
+- another task has complete dependencies
+- the next task has requirement IDs, allowed paths, and verification
+- no stop condition applies
+
+Stop and ask the user when:
+
+- no task is ready
+- requirements or design need user confirmation
+- repair budget is exhausted
+- a Git conflict cannot be resolved safely
+- credentials, paid resources, or unsafe operations are needed
+- the next task would exceed the current project scope
+
+When all tasks are complete, move to Integration Validation and Delivery.
+
 ## Completion Rule
 
 Completion is not a claim. Completion requires:

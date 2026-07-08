@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INIT_SCRIPT = ROOT / "spec2web" / "scripts" / "init-state.py"
 CHECK_SCRIPT = ROOT / "spec2web" / "scripts" / "check-state.py"
+SKILL_FILE = ROOT / "spec2web" / "SKILL.md"
 
 
 class Spec2WebStateScriptTests(unittest.TestCase):
@@ -80,6 +81,55 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("missing state directory", result.stdout)
+
+    def test_init_includes_strategy_interface_and_continuation_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(
+                [sys.executable, str(INIT_SCRIPT), "--target", tmp],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            state_dir = Path(tmp) / "spec2web"
+            system_design = (state_dir / "system-design.md").read_text(encoding="utf-8")
+            loop_state = (state_dir / "loop-state.md").read_text(encoding="utf-8")
+
+            self.assertIn("## Technology Strategy", system_design)
+            self.assertIn("## Interface Design Baseline", system_design)
+            self.assertIn("continue ready tasks until blocked or delivered", loop_state)
+
+    def test_check_state_requires_strategy_and_interface_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(
+                [sys.executable, str(INIT_SCRIPT), "--target", tmp],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            system_design = Path(tmp) / "spec2web" / "system-design.md"
+            text = system_design.read_text(encoding="utf-8")
+            system_design.write_text(
+                text.replace("## Technology Strategy", "## Missing Technology Strategy"),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(CHECK_SCRIPT), "--target", tmp],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("system-design.md missing marker: ## Technology Strategy", result.stdout)
+
+    def test_skill_routes_to_strategy_and_interface_references(self) -> None:
+        text = SKILL_FILE.read_text(encoding="utf-8")
+
+        self.assertIn("references/technology-strategy.md", text)
+        self.assertIn("references/interface-design.md", text)
 
 
 if __name__ == "__main__":

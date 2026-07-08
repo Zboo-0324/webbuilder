@@ -30,6 +30,14 @@ LOOP_STATE_MARKERS = [
     "status:",
     "current_phase:",
     "## Active Constraints",
+    "continue ready tasks until blocked or delivered",
+]
+
+SYSTEM_DESIGN_MARKERS = [
+    "## Technology Strategy",
+    "## Interface Design Baseline",
+    "### Selected Stack",
+    "### UI Verification",
 ]
 
 
@@ -68,6 +76,13 @@ def check_state(target: Path) -> list[str]:
         for marker in TASK_PLAN_MARKERS:
             if marker not in text:
                 errors.append(f"task-plan.md missing marker: {marker}")
+
+    system_design = state_dir / "system-design.md"
+    if system_design.exists():
+        text = system_design.read_text(encoding="utf-8")
+        for marker in SYSTEM_DESIGN_MARKERS:
+            if marker not in text:
+                errors.append(f"system-design.md missing marker: {marker}")
 
     return errors
 
