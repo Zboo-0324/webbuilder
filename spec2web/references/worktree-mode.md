@@ -17,8 +17,8 @@ Do not call Claude, external AI services, remote agent products, or another mode
 - The user has not disabled PR/worktree mode.
 - Each task has a task contract.
 - Each implementation task has `handoff_mode: pr_worktree`.
-- Orchestrator controls branch, worktree, PR, and merge decisions.
-- Workers submit evidence; Orchestrator accepts, merges, and marks completion.
+- Orchestrator controls branch, worktree, PR, and integration decisions.
+- Workers submit evidence; Orchestrator accepts, integrates, and marks completion.
 
 If the project is not a Git repository, ask the user before initializing Git.
 
@@ -35,8 +35,8 @@ Orchestrator selects one task
 -> Tester verifies the submitted branch or worktree
 -> Reviewer checks diff, evidence, scope, and project rules
 -> Orchestrator evaluates the acceptance gate
--> Orchestrator merges if accepted
--> main workspace verification runs
+-> Orchestrator executes the selected integration strategy
+-> main workspace verification runs after integration
 -> state files are updated
 ```
 
@@ -51,9 +51,9 @@ Orchestrator selects a no-conflict parallel group
 -> each Developer submits a PR package
 -> each task gets Tester evidence and Reviewer review
 -> Orchestrator evaluates each acceptance gate
--> Orchestrator merges accepted tasks serially
--> after each merge, run affected verification in the main workspace
--> stop later merges if any merge fails or conflicts
+-> Orchestrator integrates accepted tasks serially
+-> after each integration, run affected verification in the main workspace
+-> stop later integrations if any integration fails or conflicts
 ```
 
 ## Orchestrator Duties
@@ -62,10 +62,11 @@ Orchestrator selects a no-conflict parallel group
 - give the worker only the bounded task contract and allowed write scope,
 - record branch, worktree, and handoff status in `loop-state.md`,
 - receive the PR package,
-- review diff and evidence before merge,
+- review diff and evidence before integration,
 - run or delegate verification,
-- merge serially,
-- run post-merge verification in the main workspace,
+- choose and record the integration strategy,
+- integrate serially,
+- run post-integration verification in the main workspace,
 - clean up worktrees only after state and validation evidence are updated.
 
 ## Worker Duties
@@ -74,7 +75,7 @@ Orchestrator selects a no-conflict parallel group
 - edit only `allowed_paths`,
 - do not pull unrelated changes into the task branch unless Orchestrator instructs it,
 - do not touch the main workspace,
-- do not merge to the main branch,
+- do not merge, squash, cherry-pick, or create integration commits into the main branch,
 - do not push or open a remote PR unless Orchestrator explicitly permits it,
 - commit task changes to the task branch before submitting,
 - submit the PR package and stop.
@@ -95,17 +96,30 @@ Every Developer submission must include:
 
 For a real remote PR, also include the PR URL. For a local PR package, record the package in `loop-state.md` or the task entry.
 
-## Merge Rules
+## Formal Integration Point
 
-- Workers never merge their own work.
-- Merges are serial, even when development was parallel.
+Acceptance is not completion. A task reaches the formal integration point only when Orchestrator applies one of these strategies to the main workspace or main branch:
+
+- `merge`: merge the task branch as-is when preserving branch history is useful.
+- `squash_merge`: squash the task branch into one mainline commit when the task has noisy worker commits.
+- `cherry_pick`: cherry-pick one or more task commits when only selected commits should enter mainline.
+- `integration_commit`: manually apply or combine changes into a new commit when several accepted task branches must be reconciled together.
+
+Record the chosen strategy, resulting commit hash, and post-integration verification in `loop-state.md` or `validation-log.md`.
+
+Use `integration_commit` sparingly. It is for Orchestrator-owned reconciliation after review, not a way for workers to bypass task branches or PR packages.
+
+## Integration Rules
+
+- Workers never integrate their own work.
+- Integrations are serial, even when development was parallel.
 - Developer status can advance only to `submitted_for_acceptance`.
-- Orchestrator alone marks `accepted`, `merged`, or `complete`.
-- Diff review is required before merge.
-- Acceptance gate evaluation is required before merge.
-- Main-workspace verification is required after each merge.
-- Conflicts stop the merge queue.
-- Scope drift rejects the merge.
+- Orchestrator alone marks `accepted`, `integrated`, or `complete`.
+- Diff review is required before integration.
+- Acceptance gate evaluation is required before integration.
+- Main-workspace verification is required after each integration.
+- Conflicts stop the integration queue.
+- Scope drift rejects the integration.
 - Failed verification enters repair or blocked state.
 
 ## Naming
@@ -118,4 +132,4 @@ worktree: ../<repo-name>-TASK-001
 local_pr: TASK-001/<short-title>
 ```
 
-Record actual branch, worktree path, handoff status, and PR URL when present in `loop-state.md`.
+Record actual branch, worktree path, handoff status, integration strategy, integration commit, and PR URL when present in `loop-state.md`.

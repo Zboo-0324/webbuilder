@@ -21,12 +21,13 @@ TASK_PLAN_MARKERS = [
     "requirement_ids:",
     "status:",
     "handoff_mode:",
+    "integration_strategy:",
     "allowed_paths:",
     "verification:",
     "completion_criteria:",
     "acceptance_gate:",
     "submission_package:",
-    "merge_policy:",
+    "integration_policy:",
 ]
 
 LOOP_STATE_MARKERS = [

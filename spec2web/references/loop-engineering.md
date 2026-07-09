@@ -19,6 +19,7 @@ Read State
 -> PR Handoff Submission
 -> Test and Review
 -> Orchestrator Acceptance
+-> Formal Integration Point
 -> Repair or Record
 -> Update State
 ```
@@ -46,6 +47,7 @@ Each worker gets one task with:
 - requirement IDs
 - dependencies
 - handoff mode
+- integration strategy
 - allowed paths
 - expected outputs
 - verification
@@ -53,7 +55,7 @@ Each worker gets one task with:
 - acceptance gate
 - submission package
 - repair budget
-- merge policy
+- integration policy
 
 If the work cannot be bounded, split it before implementation.
 
@@ -70,7 +72,7 @@ Reviewer is read-only and checks:
 - project rules
 - validation evidence
 - acceptance gate readiness
-- worktree and merge protocol
+- worktree and integration protocol
 - unplanned functionality
 
 Tester records verification evidence in `validation-log.md`.
@@ -82,16 +84,16 @@ Workers submit evidence; Orchestrator decides state.
 Only Orchestrator may set a task to:
 
 - `accepted`
-- `merged`
+- `integrated`
 - `complete`
 - `needs_repair`
 - `blocked`
 
-Before acceptance, Orchestrator must check the submission package, task branch diff, Tester evidence, Reviewer recommendation, and task `acceptance_gate`. After merge, Orchestrator runs the required main-workspace verification before marking the task complete.
+Before acceptance, Orchestrator must check the submission package, task branch diff, Tester evidence, Reviewer recommendation, and task `acceptance_gate`. After acceptance, Orchestrator must execute a formal integration point using the task `integration_strategy`. After integration, Orchestrator runs the required main-workspace verification before marking the task complete.
 
 ## Worktree Isolation
 
-Worktrees isolate workers. They prevent parallel workers from editing the same checkout, but they do not solve merge correctness by themselves.
+Worktrees isolate workers. They prevent parallel workers from editing the same checkout, but they do not solve integration correctness by themselves.
 
 Controlled multi-worker mode is allowed only when:
 
@@ -102,7 +104,7 @@ Controlled multi-worker mode is allowed only when:
 - each task has an independent worktree
 - Orchestrator records the batch in `loop-state.md`
 
-Workers never merge their own work. Orchestrator merges serially, even when development was parallel.
+Workers never integrate their own work. Orchestrator integrates serially, even when development was parallel.
 
 ## Finite Repair
 
@@ -140,7 +142,7 @@ After Orchestrator marks a task complete, it should continue to the next ready t
 Continue automatically when:
 
 - `loop-state.md` has `status: active`
-- the current task passed verification, review, acceptance, and any required post-merge verification
+- the current task passed verification, review, acceptance, integration, and any required post-integration verification
 - state files have been updated
 - another task has complete dependencies
 - the next task has requirement IDs, allowed paths, and verification
@@ -166,6 +168,7 @@ Completion is not a claim and not a worker decision. Completion requires:
 - verification evidence recorded
 - Reviewer sign-off or documented exceptions
 - Orchestrator acceptance recorded
-- main workspace validation after merges
+- formal integration point recorded
+- main workspace validation after integration
 - task state updated to `complete`
 - `delivery-report.md` generated

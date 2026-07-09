@@ -38,11 +38,14 @@ Do not accept or mark a task complete until:
 
 - the task maps to requirement IDs,
 - the task has a clear verification method,
+- the task has an integration strategy,
 - implementation happened through PR/worktree handoff when Git worktree mode was available,
 - the Developer has submitted an implementation summary and evidence package,
 - verification results are recorded in `spec2web/validation-log.md`,
 - Reviewer has checked scope, quality, and workflow compliance,
 - Orchestrator has run the task acceptance gate and chosen accept, repair, or block,
+- Orchestrator has executed a formal integration point when acceptance passed,
+- main-workspace verification passed after integration,
 - `spec2web/loop-state.md` is updated.
 
 ## Workflow
@@ -71,25 +74,25 @@ Read State
 -> PR Handoff Submission
 -> Test and Review
 -> Orchestrator Acceptance
--> Serial Merge or Repair or Record
+-> Formal Integration Point or Repair or Record
 -> Update State
 ```
 
 ## Orchestration Policy
 
-The main session stays Orchestrator. It owns state, task selection, PR/worktree setup, delegation, acceptance, merge decisions, and continuation.
+The main session stays Orchestrator. It owns state, task selection, PR/worktree setup, delegation, acceptance, integration decisions, and continuation.
 
 Prefer host-provided subagents or subsessions for Developer, Tester, Reviewer, and Repairer roles. Do not call Claude, external AI services, remote agent products, or another model provider to satisfy this policy.
 
 The old external-agent pattern maps to this local pattern:
 
 ```text
-Codex Orchestrator -> host subagent worker -> task worktree/branch -> PR handoff -> Orchestrator review/test/merge
+Codex Orchestrator -> host subagent worker -> task worktree/branch -> PR handoff -> Orchestrator review/test/integrate
 ```
 
 Use single-session role switching only when subagents are unavailable, the task is too coupled to split safely, or the task is small enough that delegation overhead would exceed the work. Record the fallback reason in `loop-state.md`.
 
-Workers submit work for acceptance; they do not decide completion. A Developer may commit only to the assigned task branch and may move a task to `submitted_for_acceptance`. Only Orchestrator may mark it `accepted`, `merged`, `complete`, `blocked`, or `needs_repair`.
+Workers submit work for acceptance; they do not decide completion. A Developer may commit only to the assigned task branch and may move a task to `submitted_for_acceptance`. Only Orchestrator may mark it `accepted`, `integrated`, `complete`, `blocked`, or `needs_repair`.
 
 ## Continuation Policy
 
@@ -163,6 +166,7 @@ Every task must have:
 - `dependencies`
 - `status`
 - `handoff_mode`
+- `integration_strategy`
 - `allowed_paths`
 - `expected_outputs`
 - `verification`
@@ -172,7 +176,7 @@ Every task must have:
 - `risks_or_blockers`
 - `execution_workspace`
 - `parallel_group`
-- `merge_policy`
+- `integration_policy`
 
 For task rules and templates, read `references/task-breakdown.md`.
 
@@ -180,7 +184,7 @@ For task rules and templates, read `references/task-breakdown.md`.
 
 Use role separation with Orchestrator as the fixed main-session role:
 
-- Orchestrator maintains state, selects tasks, chooses safe parallel batches, and controls merges.
+- Orchestrator maintains state, selects tasks, chooses safe parallel batches, and controls integration.
 - Planner analyzes requirements, designs the system, and decomposes tasks.
 - Developer implements one task inside its boundary.
 - Tester verifies behavior and requirement coverage.
@@ -188,7 +192,7 @@ Use role separation with Orchestrator as the fixed main-session role:
 - Repairer fixes failures using explicit evidence.
 - Delivery prepares final reporting.
 
-When subagents are available, delegate Developer, Tester, Reviewer, and Repairer roles. When they are not available, explicitly switch roles and record the fallback reason. Developer may not self-certify completion or merge.
+When subagents are available, delegate Developer, Tester, Reviewer, and Repairer roles. When they are not available, explicitly switch roles and record the fallback reason. Developer may not self-certify completion or integrate.
 
 For detailed role rules, read `references/role-protocol.md`.
 
@@ -207,7 +211,7 @@ Parallel tasks must satisfy:
 - each task uses an independent worktree,
 - Orchestrator records the batch in `loop-state.md`.
 
-Even when development is parallel, merges are serial. Each merge requires worker submission, Tester evidence, Reviewer approval, Orchestrator acceptance, main-workspace verification, and state updates.
+Even when development is parallel, integration is serial. Each integration requires worker submission, Tester evidence, Reviewer approval, Orchestrator acceptance, a recorded integration strategy, main-workspace verification, and state updates.
 
 For PR/worktree handoff details, read `references/worktree-mode.md`.
 

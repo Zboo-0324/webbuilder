@@ -1,6 +1,6 @@
 # Technology Strategy
 
-Technology strategy is part of System Design. It must be decided before task breakdown because it affects dependencies, file boundaries, verification commands, deployment, and future worktree merge risk.
+Technology strategy is part of System Design. It must be decided before task breakdown because it affects dependencies, file boundaries, verification commands, deployment, and future worktree integration risk.
 
 ## Decision Rule
 

@@ -44,6 +44,7 @@ Each task must include:
 - dependencies: TASK-000 or none
 - status: pending
 - handoff_mode: pr_worktree
+- integration_strategy: squash_merge
 - allowed_paths:
   - path/pattern
 - expected_outputs:
@@ -65,7 +66,7 @@ Each task must include:
   - none
 - execution_workspace: main or worktree
 - parallel_group: none or PG-000
-- merge_policy: orchestrator_review_then_serial_merge
+- integration_policy: orchestrator_review_then_serial_integration
 ```
 
 ## Completion vs Acceptance
@@ -78,12 +79,12 @@ Use these status values:
 - `in_progress`: a worker is executing the task.
 - `submitted_for_acceptance`: Developer has submitted the task package.
 - `needs_repair`: Orchestrator or Reviewer rejected the submission with evidence.
-- `accepted`: Orchestrator accepted the task before merge.
-- `merged`: Orchestrator merged the accepted task.
-- `complete`: post-merge verification passed and state is updated.
+- `accepted`: Orchestrator accepted the task before integration.
+- `integrated`: Orchestrator integrated the accepted task into the main workspace or main branch.
+- `complete`: post-integration verification passed and state is updated.
 - `blocked`: task cannot proceed without user input or external change.
 
-Only Orchestrator may set `accepted`, `merged`, or `complete`. Developer, Tester, and Reviewer provide evidence; they do not self-certify completion.
+Only Orchestrator may set `accepted`, `integrated`, or `complete`. Developer, Tester, and Reviewer provide evidence; they do not self-certify completion.
 
 ## Handoff Mode
 
@@ -93,9 +94,20 @@ Use `handoff_mode: pr_worktree` for implementation tasks when the project is a G
 - Developer works only in that worktree,
 - Developer commits only to the task branch,
 - Developer submits a local or remote PR package,
-- Orchestrator reviews, tests, accepts, and merges.
+- Orchestrator reviews, tests, accepts, integrates, and runs post-integration verification.
 
 Use `handoff_mode: single_session` only when subagents are unavailable, the task is too coupled to isolate safely, or the task is small enough that delegation overhead exceeds the work. Record the reason in `loop-state.md`.
+
+## Integration Strategy
+
+Each implementation task must declare one `integration_strategy`:
+
+- `merge`: preserve the task branch history.
+- `squash_merge`: collapse the task branch into one mainline commit.
+- `cherry_pick`: apply selected task commits only.
+- `integration_commit`: Orchestrator creates a new reconciliation commit from one or more accepted tasks.
+
+The strategy may change only before integration and only by Orchestrator. Record the chosen strategy and resulting integration commit in `loop-state.md` or `validation-log.md`.
 
 ## Acceptance Gate
 
@@ -104,7 +116,7 @@ Each `acceptance_gate` must be specific enough for Orchestrator to decide accept
 - required verification command or manual check,
 - Reviewer scope and quality check,
 - requirement IDs covered,
-- main-workspace verification needed after merge,
+- main-workspace verification needed after integration,
 - rejection conditions such as scope drift, missing evidence, conflict, or failed tests.
 
 ## Parallel Eligibility

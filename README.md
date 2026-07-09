@@ -28,7 +28,7 @@ Spec2Web 会帮助智能体：
 - 在前端开发前定义界面设计基线
 - 产出系统设计
 - 将工作拆解成有边界的小任务
-- 通过 PR/worktree 交接推进任务：Orchestrator 派发，子代理开发提交，Orchestrator 审查测试合并
+- 通过 PR/worktree 交接推进任务：Orchestrator 派发，子代理开发提交，Orchestrator 审查、测试、验收、集成
 - 在 Git 项目中默认使用 task branch 和 worktree 隔离开发任务
 - 在任务完成后继续推进下一个 ready task，直到阻塞或交付
 - 记录验证证据和交付说明
@@ -206,7 +206,7 @@ Read State
 -> PR Handoff Submission
 -> Test and Review
 -> Orchestrator Acceptance
--> Serial Merge or Repair or Record
+-> Formal Integration Point or Repair or Record
 -> Update State
 ```
 
@@ -221,10 +221,10 @@ Spec2Web 在 Git 项目中默认使用 PR/worktree 交接：
 - Orchestrator 创建 task branch 和 worktree
 - 子代理 worker 只在自己的 worktree 中开发并提交到 task branch
 - worker 提交本地 PR 包或远程 PR 后停止
-- Orchestrator 审查、测试、验收并串行合并
-- 每次合并后都需要重新验证
+- Orchestrator 通过 `merge`、`squash_merge`、`cherry_pick` 或 `integration_commit` 串行集成
+- 每次集成后都需要在主工作区重新验证
 
-V1 不提供自动 worker 池，也不提供无人值守的批量合并调度器。
+V1 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
 
 ## 验证
 

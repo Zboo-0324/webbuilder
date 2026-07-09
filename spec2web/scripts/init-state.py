@@ -152,6 +152,7 @@ Default to one task at a time. Use controlled multi-worker mode only for no-conf
 - dependencies: none
 - status: pending
 - handoff_mode: pr_worktree
+- integration_strategy: squash_merge
 - allowed_paths:
   - replace/with/path
 - expected_outputs:
@@ -173,7 +174,7 @@ Default to one task at a time. Use controlled multi-worker mode only for no-conf
   - none
 - execution_workspace: main
 - parallel_group: none
-- merge_policy: orchestrator_review_then_serial_merge
+- integration_policy: orchestrator_review_then_serial_integration
 """,
     "loop-state.md": """# Loop State
 
@@ -196,7 +197,7 @@ active_parallel_group: null
 - update state before moving on
 - verify before claiming done
 - follow project-rules.md
-- Orchestrator controls merges
+- Orchestrator controls integration
 
 ## Worktrees
 
@@ -205,8 +206,8 @@ active_parallel_group: null
 
 ## PR Handoffs
 
-| Task | Mode | Branch | Worktree | Commit | PR URL | Status |
-|---|---|---|---|---|---|---|
+| Task | Mode | Branch | Worktree | Commit | PR URL | Integration Strategy | Integration Commit | Status |
+|---|---|---|---|---|---|---|---|---|
 
 ## Next Step
 

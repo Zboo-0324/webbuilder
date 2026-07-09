@@ -21,9 +21,10 @@ Record the fallback reason in `loop-state.md`.
 - create and record task branches, worktrees, and PR handoff status
 - give each worker a bounded task contract, branch, worktree, and allowed write scope
 - receive worker submission packages
-- decide accept, repair, block, or merge
-- merge serially
-- mark tasks `accepted`, `merged`, `complete`, `needs_repair`, or `blocked`
+- decide accept, repair, block, or integrate
+- choose and record the integration strategy
+- integrate serially
+- mark tasks `accepted`, `integrated`, `complete`, `needs_repair`, or `blocked`
 - stop on conflicts, failed validation, or scope drift
 
 ## Planner
@@ -44,9 +45,9 @@ Record the fallback reason in `loop-state.md`.
 - include the required submission package
 - commit only to the assigned task branch
 - do not self-certify completion
-- do not merge to the main branch
+- do not merge, squash, cherry-pick, or create integration commits into the main branch
 - do not push or open a remote PR unless Orchestrator explicitly permits it
-- do not mark `accepted`, `merged`, or `complete`
+- do not mark `accepted`, `integrated`, or `complete`
 
 Developer submission package:
 
@@ -63,7 +64,7 @@ Developer submission package:
 - add or propose missing behavior tests when appropriate
 - record results in `validation-log.md`
 - distinguish pre-existing failures from new failures
-- recommend pass, repair, or block; do not accept or merge
+- recommend pass, repair, or block; do not accept or integrate
 
 ## Reviewer
 
@@ -79,9 +80,9 @@ Check:
 - verification evidence exists
 - submission package is sufficient
 - acceptance gate can be evaluated
-- PR/worktree mode did not bypass merge review
+- PR/worktree mode did not bypass integration review
 
-Reviewer recommends approve, repair, or block. Reviewer does not merge or mark the task complete.
+Reviewer recommends approve, repair, or block. Reviewer does not integrate or mark the task complete.
 
 ## Repairer
 
