@@ -165,19 +165,31 @@ Initialize state files:
 python spec2web/scripts/init-state.py --target .
 ```
 
-Check state files:
+Check the state structure:
 
 ```powershell
-python spec2web/scripts/check-state.py --target .
+python spec2web/scripts/check-state.py --target . --phase structure
 ```
 
-The checker validates required state files and key markers, including:
+Before application-code tasks, run the execution gate:
 
-- workflow status
-- task-plan fields
-- technology strategy
-- interface design baseline
-- continuation constraints
+```powershell
+python spec2web/scripts/check-state.py --target . --phase execution
+```
+
+Before final delivery, run the delivery gate:
+
+```powershell
+python spec2web/scripts/check-state.py --target . --phase delivery
+```
+
+The checker has three validation depths:
+
+- `structure`: required files, workflow markers, design sections, task contracts, and valid status values
+- `execution`: confirmed requirements, ready project/design/task baselines, no placeholders, and an active workflow
+- `delivery`: complete tasks, validation evidence, a complete delivery report, and terminal workflow state
+
+The initializer does not overwrite older state files. Use structure-check findings to add missing top-level statuses, design sections, and task `repair_budget`; mark them `ready` or `confirmed` only after their contents satisfy the current gate.
 
 ## Workflow
 
@@ -212,6 +224,8 @@ Read State
 
 After one task completes, the Orchestrator continues to the next ready task when `loop-state.md` is active and no stop condition applies.
 
+Application code starts only after `project-rules.md`, `system-design.md`, and `task-plan.md` are `ready`, `requirements-baseline.md` is `confirmed`, and the execution gate passes. Final delivery requires all tasks `complete`, `delivery-report.md` `complete`, `loop-state.md` set to `current_phase: delivery` and `status: delivered`, and the delivery gate passing.
+
 ## PR/Worktree Mode
 
 Spec2Web defaults to PR/worktree handoff in Git projects:
@@ -226,6 +240,8 @@ Spec2Web defaults to PR/worktree handoff in Git projects:
 
 V1 does not provide an automatic worker pool or unattended integration scheduler.
 
+For non-Git projects or explicit single-session fallback, use `handoff_mode: single_session` with `integration_strategy: direct_apply`. This records that accepted changes already exist in the main workspace and require Orchestrator verification without inventing a merge or commit.
+
 ## Validation
 
 Run a state script smoke check:
@@ -235,7 +251,7 @@ $tmp = Join-Path $env:TEMP "spec2web-smoke"
 Remove-Item -Recurse -Force -LiteralPath $tmp -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 python spec2web/scripts/init-state.py --target $tmp
-python spec2web/scripts/check-state.py --target $tmp
+python spec2web/scripts/check-state.py --target $tmp --phase structure
 ```
 
 Validate the Skill package:
@@ -260,7 +276,7 @@ Potential V2 additions:
 
 - richer distribution packaging for Codex, Claude Code, and Hermes
 - optional global CLI
-- stronger validators
+- machine-readable state schemas and migration tooling
 - automatic worktree pool and conflict analysis
 - example projects
 - marketplace or hub distribution metadata

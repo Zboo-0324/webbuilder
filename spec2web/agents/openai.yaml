@@ -1,7 +1,7 @@
 interface:
   display_name: "Spec2Web"
-  short_description: "Guide full-stack web delivery with PR/worktree loops."
-  default_prompt: "Use $spec2web to initialize or continue a full-stack web project workflow."
+  short_description: "Gate full-stack delivery from requirements to release"
+  default_prompt: "Use $spec2web to initialize or continue a gated full-stack delivery workflow."
 
 policy:
   allow_implicit_invocation: true

@@ -12,11 +12,23 @@ Before final delivery, verify and record evidence.
 - known risks are documented
 - credentials are not committed
 - local absolute paths are not embedded in deliverables
+- every task has `status: complete`
+- `delivery-report.md` has `status: complete`
+- `loop-state.md` has `current_phase: delivery` and `status: delivered`
+- the delivery-phase state check passes
+
+Run the bundled checker from the Skill directory:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
+```
 
 ## Delivery Report Template
 
 ````markdown
 # Delivery Report
+
+status: complete
 
 ## Summary
 

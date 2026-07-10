@@ -55,6 +55,7 @@ Each task must include:
   - worker-observable condition for submitting the task
 - acceptance_gate:
   - Orchestrator check required before accepting or merging
+- repair_budget: 3
 - submission_package:
   - branch name and commit hash
   - worktree path
@@ -86,6 +87,8 @@ Use these status values:
 
 Only Orchestrator may set `accepted`, `integrated`, or `complete`. Developer, Tester, and Reviewer provide evidence; they do not self-certify completion.
 
+Do not start implementation until `task-plan.md` has top-level `status: ready` and the execution-phase state check passes. Set it back to `draft` whenever requirements, shared contracts, or task boundaries need replanning.
+
 ## Handoff Mode
 
 Use `handoff_mode: pr_worktree` for implementation tasks when the project is a Git repository. This means:
@@ -98,6 +101,8 @@ Use `handoff_mode: pr_worktree` for implementation tasks when the project is a G
 
 Use `handoff_mode: single_session` only when subagents are unavailable, the task is too coupled to isolate safely, or the task is small enough that delegation overhead exceeds the work. Record the reason in `loop-state.md`.
 
+Pair `single_session` with `integration_strategy: direct_apply`. The Orchestrator records acceptance, confirms the changes are already in the main workspace, runs main-workspace verification, and then marks the task integrated; no Git operation is implied.
+
 ## Integration Strategy
 
 Each implementation task must declare one `integration_strategy`:
@@ -106,6 +111,7 @@ Each implementation task must declare one `integration_strategy`:
 - `squash_merge`: collapse the task branch into one mainline commit.
 - `cherry_pick`: apply selected task commits only.
 - `integration_commit`: Orchestrator creates a new reconciliation commit from one or more accepted tasks.
+- `direct_apply`: for `single_session` tasks whose accepted changes are already in the main workspace, including non-Git projects; record acceptance and main-workspace verification without claiming a merge or commit.
 
 The strategy may change only before integration and only by Orchestrator. Record the chosen strategy and resulting integration commit in `loop-state.md` or `validation-log.md`.
 

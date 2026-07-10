@@ -165,19 +165,31 @@ spec2web/
 python spec2web/scripts/init-state.py --target .
 ```
 
-检查状态文件：
+检查状态结构：
 
 ```powershell
-python spec2web/scripts/check-state.py --target .
+python spec2web/scripts/check-state.py --target . --phase structure
 ```
 
-检查脚本会验证必要状态文件和关键标记，包括：
+开始应用代码任务前，运行执行门禁：
 
-- workflow 状态
-- task-plan 字段
-- 技术栈策略
-- 界面设计基线
-- 连续执行约束
+```powershell
+python spec2web/scripts/check-state.py --target . --phase execution
+```
+
+最终交付前，运行交付门禁：
+
+```powershell
+python spec2web/scripts/check-state.py --target . --phase delivery
+```
+
+检查脚本提供三种深度：
+
+- `structure`：必要文件、工作流标记、设计章节、任务契约和状态取值
+- `execution`：已确认需求、已就绪的规则/设计/任务基线、无占位内容和 active 工作流
+- `delivery`：全部任务完成、验证证据完整、交付报告完成和终态工作流
+
+旧版本状态文件不会被初始化脚本覆盖；请按结构检查结果补充缺失的顶层状态、设计章节和任务 `repair_budget`，确认内容满足门禁后再改为 `ready` 或 `confirmed`。
 
 ## 工作流
 
@@ -212,6 +224,8 @@ Read State
 
 一个任务完成后，只要 `loop-state.md` 仍为 active，且下一个任务依赖满足、验证方法明确、没有停止条件，Orchestrator 就继续推进下一个任务。
 
+只有当 `project-rules.md`、`system-design.md`、`task-plan.md` 为 `ready`，`requirements-baseline.md` 为 `confirmed`，且执行门禁通过后，才开始编写应用代码。最终交付还要求所有任务为 `complete`、`delivery-report.md` 为 `complete`、`loop-state.md` 为 `current_phase: delivery` 和 `status: delivered`，并通过交付门禁。
+
 ## PR/Worktree 模式
 
 Spec2Web 在 Git 项目中默认使用 PR/worktree 交接：
@@ -226,6 +240,8 @@ Spec2Web 在 Git 项目中默认使用 PR/worktree 交接：
 
 V1 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
 
+对于非 Git 项目或明确采用单会话回退的任务，使用 `handoff_mode: single_session` 和 `integration_strategy: direct_apply`；它表示改动已在主工作区中，由 Orchestrator 验收并完成主工作区验证，不虚构 merge 或 commit。
+
 ## 验证
 
 运行状态脚本 smoke check：
@@ -235,7 +251,7 @@ $tmp = Join-Path $env:TEMP "spec2web-smoke"
 Remove-Item -Recurse -Force -LiteralPath $tmp -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 python spec2web/scripts/init-state.py --target $tmp
-python spec2web/scripts/check-state.py --target $tmp
+python spec2web/scripts/check-state.py --target $tmp --phase structure
 ```
 
 校验 Skill 包：
@@ -260,7 +276,7 @@ V2 可以考虑：
 
 - 更完整的 Codex、Claude Code、Hermes 分发打包
 - 可选全局 CLI
-- 更强的状态验证器
+- 机器可读的状态 Schema 和迁移工具
 - 自动 worktree 池和冲突分析
 - 示例项目
 - marketplace 或 hub 分发元数据

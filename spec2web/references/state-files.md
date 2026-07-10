@@ -15,6 +15,21 @@ spec2web/
 └── delivery-report.md
 ```
 
+## Readiness Statuses
+
+Use explicit top-level statuses so file existence cannot be mistaken for phase readiness:
+
+- `project-rules.md`: `draft` -> `ready`
+- `requirements-baseline.md`: `draft` -> `confirmed`
+- `system-design.md`: `draft` -> `ready`
+- `task-plan.md`: `draft` -> `ready`
+- `delivery-report.md`: `draft` -> `complete`
+- `loop-state.md`: `active`, `paused`, `blocked`, `disabled`, or terminal `delivered`
+
+Do not change a status merely to satisfy the checker. Change it only after the file's phase exit gate is met.
+
+For state directories created by an older Skill version, rerunning `init-state.py` will not overwrite existing files. Add the missing top-level statuses, required design sections, and per-task `repair_budget` manually; keep migrated artifacts `draft` until their contents satisfy the current gate.
+
 ## project-rules.md
 
 Purpose: summarize implementation-relevant instructions from `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, README, and user-provided rules.
@@ -23,6 +38,8 @@ Template:
 
 ```markdown
 # Project Rules
+
+status: draft
 
 ## Sources Read
 
@@ -81,6 +98,8 @@ Template:
 ```markdown
 # System Design
 
+status: draft
+
 ## Technology Strategy
 
 ### Existing Stack
@@ -93,6 +112,12 @@ Template:
 - build: not recorded
 - deployment: not recorded
 
+### Options Considered
+
+| Option | Best For | Tradeoffs | Decision |
+|---|---|---|---|
+| Existing stack | Preserve current project conventions. | Replace with project-specific tradeoffs. | selected |
+
 ### Selected Stack
 
 - frontend: not recorded
@@ -102,6 +127,12 @@ Template:
 - testing: not recorded
 - validation: not recorded
 - deployment assumption: not recorded
+
+### Dependency Policy
+
+- Reuse existing dependencies first.
+- Add new dependencies only with justification.
+- Record install commands and lockfile impact.
 
 ### Verification Commands
 
@@ -138,6 +169,24 @@ Template:
 - desktop constraints: not recorded
 - mobile constraints: not recorded
 
+### Component Conventions
+
+- buttons: not recorded
+- forms: not recorded
+- tables/lists: not recorded
+- modals/drawers: not recorded
+- feedback/toasts: not recorded
+- icons: not recorded
+
+### State Coverage
+
+- loading: not recorded
+- empty: not recorded
+- error: not recorded
+- disabled: not recorded
+- success: not recorded
+- permission denied: not recorded
+
 ### UI Verification
 
 - browser checks: not recorded
@@ -172,14 +221,19 @@ Template:
 
 Purpose: list tasks, dependencies, allowed paths, validation, parallel groups, and integration policies.
 
+Use `pr_worktree` with a Git integration strategy for isolated task branches. Use `single_session` with `direct_apply` when accepted changes are already in the main workspace, including non-Git projects.
+
 Template:
 
 ```markdown
 # Task Plan
 
+status: draft
+
 ## Current Strategy
 
 Default to one task at a time. Use controlled multi-worker mode only for no-conflict tasks.
+For non-Git or single-session tasks, pair `handoff_mode: single_session` with `integration_strategy: direct_apply`.
 
 ## Tasks
 
@@ -201,6 +255,7 @@ Default to one task at a time. Use controlled multi-worker mode only for no-conf
   - worker-observable condition for submitting the task
 - acceptance_gate:
   - Orchestrator check required before accepting or merging
+- repair_budget: 3
 - submission_package:
   - branch name and commit hash
   - worktree path
@@ -288,6 +343,8 @@ Template:
 ```markdown
 # Delivery Report
 
+status: draft
+
 ## Completed
 
 - List completed user-facing features.
@@ -308,3 +365,17 @@ Template:
 
 - List intentional omissions or blockers.
 ```
+
+## Phase Checks
+
+Run the bundled checker from the installed or project-local Skill directory:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
+python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
+```
+
+- `structure` checks required files, workflow markers, design sections, task contracts, and allowed status values.
+- `execution` additionally requires confirmed or ready baselines, no placeholder content, and an active workflow.
+- `delivery` additionally requires all tasks complete, recorded validation evidence, a complete delivery report, and terminal workflow state.

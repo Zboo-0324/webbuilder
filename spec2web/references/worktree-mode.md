@@ -16,6 +16,7 @@ Do not call Claude, external AI services, remote agent products, or another mode
 - The project is a Git repository.
 - The user has not disabled PR/worktree mode.
 - Each task has a task contract.
+- The execution-phase state check passes.
 - Each implementation task has `handoff_mode: pr_worktree`.
 - Orchestrator controls branch, worktree, PR, and integration decisions.
 - Workers submit evidence; Orchestrator accepts, integrates, and marks completion.

@@ -24,6 +24,7 @@ Record the fallback reason in `loop-state.md`.
 - decide accept, repair, block, or integrate
 - choose and record the integration strategy
 - integrate serially
+- use `direct_apply` for accepted `single_session` work already present in the main workspace
 - mark tasks `accepted`, `integrated`, `complete`, `needs_repair`, or `blocked`
 - stop on conflicts, failed validation, or scope drift
 
@@ -34,10 +35,13 @@ Record the fallback reason in `loop-state.md`.
 - produce `requirements-baseline.md`
 - produce `system-design.md`
 - produce `task-plan.md`
+- leave each artifact `draft` until its phase exit gate is satisfied
+- mark requirements `confirmed` and design/task artifacts `ready` only when their contents support execution
 
 ## Developer
 
 - implement exactly one task
+- start only after the execution-phase state check passes
 - work only in the assigned task worktree when PR/worktree mode is available
 - stay within `allowed_paths`
 - submit only when `completion_criteria` are met

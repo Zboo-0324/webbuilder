@@ -10,6 +10,8 @@ from pathlib import Path
 TEMPLATES = {
     "project-rules.md": """# Project Rules
 
+status: draft
+
 ## Sources Read
 
 - [ ] CLAUDE.md
@@ -51,6 +53,8 @@ status: draft
 """,
     "system-design.md": """# System Design
 
+status: draft
+
 ## Technology Strategy
 
 ### Existing Stack
@@ -63,6 +67,12 @@ status: draft
 - build: not recorded
 - deployment: not recorded
 
+### Options Considered
+
+| Option | Best For | Tradeoffs | Decision |
+|---|---|---|---|
+| Existing stack | Preserve current project conventions. | Replace with project-specific tradeoffs. | selected |
+
 ### Selected Stack
 
 - frontend: not recorded
@@ -72,6 +82,12 @@ status: draft
 - testing: not recorded
 - validation: not recorded
 - deployment assumption: not recorded
+
+### Dependency Policy
+
+- Reuse existing dependencies first.
+- Add new dependencies only with justification.
+- Record install commands and lockfile impact.
 
 ### Verification Commands
 
@@ -108,6 +124,24 @@ status: draft
 - desktop constraints: not recorded
 - mobile constraints: not recorded
 
+### Component Conventions
+
+- buttons: not recorded
+- forms: not recorded
+- tables/lists: not recorded
+- modals/drawers: not recorded
+- feedback/toasts: not recorded
+- icons: not recorded
+
+### State Coverage
+
+- loading: not recorded
+- empty: not recorded
+- error: not recorded
+- disabled: not recorded
+- success: not recorded
+- permission denied: not recorded
+
 ### UI Verification
 
 - browser checks: not recorded
@@ -139,9 +173,12 @@ status: draft
 """,
     "task-plan.md": """# Task Plan
 
+status: draft
+
 ## Current Strategy
 
 Default to one task at a time. Use controlled multi-worker mode only for no-conflict tasks.
+For non-Git or single-session tasks, pair `handoff_mode: single_session` with `integration_strategy: direct_apply`.
 
 ## Tasks
 
@@ -163,6 +200,7 @@ Default to one task at a time. Use controlled multi-worker mode only for no-conf
   - replace with worker-observable condition for submitting the task
 - acceptance_gate:
   - replace with Orchestrator check required before accepting or merging
+- repair_budget: 3
 - submission_package:
   - branch name and commit hash
   - worktree path
@@ -220,6 +258,8 @@ Read project rules and update project-rules.md.
 No validation has been recorded yet.
 """,
     "delivery-report.md": """# Delivery Report
+
+status: draft
 
 ## Completed
 

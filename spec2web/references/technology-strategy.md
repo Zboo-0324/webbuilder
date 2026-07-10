@@ -19,6 +19,8 @@ For new projects:
 
 Do not add dependencies just because they are popular. Every dependency needs a requirement or a clear implementation benefit.
 
+Keep `system-design.md` at `status: draft` while stack choices or verification commands are unresolved. Set it to `ready` only after the technology and interface baselines support task execution.
+
 ## Required Output
 
 Write this section into `spec2web/system-design.md`:

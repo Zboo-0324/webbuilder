@@ -1,6 +1,6 @@
 ---
 name: spec2web
-description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through project rules, requirement baseline, technology strategy, interface design, system design, task breakdown, role-separated PR/worktree loops, validation, repair, and delivery reporting.
+description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through project rules, confirmed requirements, technology and interface baselines, phase readiness gates, bounded task plans, role-separated PR/worktree loops, validation, repair, and delivery reporting.
 ---
 
 # Spec2Web
@@ -24,15 +24,38 @@ If the current project contains `spec2web/loop-state.md` with `status: active`, 
 
 For localized invocation examples and install paths, read `references/install.md`.
 
+## Initialization
+
+When the user asks to initialize Spec2Web:
+
+1. Resolve `<skill-root>` to the folder containing this `SKILL.md` and `<project-root>` to the target project.
+2. Read project rule files before changing state.
+3. Run `python <skill-root>/scripts/init-state.py --target <project-root>`.
+4. Run the structure check and repair missing fields in older state files without overwriting confirmed content:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+```
+
+5. Populate Project Rules, Requirement Baseline, System Design, and Task Breakdown in order. Keep generated artifacts `draft` until their phase exit gates are satisfied.
+
 ## Hard Gates
 
-Do not write application code until all of these exist:
+Do not write application code until all of these exist and are ready:
 
-- `spec2web/project-rules.md`
-- `spec2web/requirements-baseline.md`
-- `spec2web/system-design.md`
-- `spec2web/task-plan.md`
+- `spec2web/project-rules.md` has `status: ready`,
+- `spec2web/requirements-baseline.md` has `status: confirmed`,
+- `spec2web/system-design.md` has `status: ready`,
+- `spec2web/task-plan.md` has `status: ready`,
 - `spec2web/loop-state.md`
+
+Before the first application-code task, run the bundled checker from this Skill directory:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
+```
+
+Do not proceed while the checker reports draft statuses, placeholders, incomplete task contracts, or an inactive workflow.
 
 Do not accept or mark a task complete until:
 
@@ -61,6 +84,15 @@ Follow this sequence:
 7. Task Execution Loop
 8. Integration Validation
 9. Delivery
+
+Phase exit gates:
+
+- Project Rules exits only when implementation-relevant rules and conflicts are recorded and `project-rules.md` is `ready`.
+- Requirement Baseline exits only when requirements and acceptance signals are confirmed and `requirements-baseline.md` is `confirmed`.
+- System Design exits only when technology, interface, data/API, permissions, and verification decisions are sufficient for the scoped work and `system-design.md` is `ready`.
+- Task Breakdown exits only when every task has a complete contract and `task-plan.md` is `ready`.
+- Task Execution starts only after the execution-phase state check passes.
+- Delivery completes only after every task is `complete`, final evidence is recorded, terminal state is written, and the delivery-phase state check passes.
 
 Each task-level loop follows:
 
@@ -92,6 +124,8 @@ Codex Orchestrator -> host subagent worker -> task worktree/branch -> PR handoff
 
 Use single-session role switching only when subagents are unavailable, the task is too coupled to split safely, or the task is small enough that delegation overhead would exceed the work. Record the fallback reason in `loop-state.md`.
 
+For `single_session` tasks, use `integration_strategy: direct_apply`. Treat Orchestrator acceptance plus main-workspace verification as the formal integration point; do not claim a Git merge or commit when none occurred.
+
 Workers submit work for acceptance; they do not decide completion. A Developer may commit only to the assigned task branch and may move a task to `submitted_for_acceptance`. Only Orchestrator may mark it `accepted`, `integrated`, `complete`, `blocked`, or `needs_repair`.
 
 ## Continuation Policy
@@ -106,7 +140,7 @@ Continue only when:
 - current verification and review passed,
 - no stop condition applies.
 
-Stop and ask the user when requirements are unclear, design changes are needed, repair budget is exhausted, a Git conflict cannot be resolved safely, credentials or paid resources are needed, or no ready task exists. When no tasks remain, move to Integration Validation and Delivery.
+Stop and ask the user when requirements are unclear, design changes are needed, repair budget is exhausted, a Git conflict cannot be resolved safely, credentials or paid resources are needed, or no ready task exists. When no tasks remain, move to Integration Validation and Delivery. After final validation and reporting, set `current_phase: delivery`, set `status: delivered`, and stop automatic continuation.
 
 ## Project Rules
 
@@ -172,6 +206,7 @@ Every task must have:
 - `verification`
 - `completion_criteria`
 - `acceptance_gate`
+- `repair_budget`
 - `submission_package`
 - `risks_or_blockers`
 - `execution_workspace`
@@ -240,6 +275,10 @@ All outputs from external Skills must be written back to Spec2Web state files. E
 
 ## Delivery
 
-Before final delivery, run the project-specific verification commands, update `validation-log.md`, and generate `delivery-report.md`.
+Before final delivery, run the project-specific verification commands, update `validation-log.md`, generate `delivery-report.md`, mark its status `complete`, set terminal workflow state, and run:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
+```
 
 For final checks and report structure, read `references/delivery-checklist.md`.

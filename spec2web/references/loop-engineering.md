@@ -38,6 +38,22 @@ Conversation is not memory. The project memory lives in `spec2web/`:
 
 On resume, read `project-rules.md`, `task-plan.md`, and `loop-state.md` before acting.
 
+## Phase Gates
+
+File presence is only a structural check. Before application-code work, require ready or confirmed baselines and run the bundled checker:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
+```
+
+Before claiming final delivery, record final evidence, make every task `complete`, mark `delivery-report.md` as `complete`, set `loop-state.md` to `current_phase: delivery` and `status: delivered`, then run:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
+```
+
+If either check fails, repair state or evidence instead of bypassing the gate.
+
 ## Bounded Work
 
 Do not ask a worker to build the entire project. The Orchestrator selects one task or a safe parallel batch from `task-plan.md`.
@@ -58,6 +74,8 @@ Each worker gets one task with:
 - integration policy
 
 If the work cannot be bounded, split it before implementation.
+
+For a `single_session` task, use `integration_strategy: direct_apply`. After the Developer role submits evidence, switch back to Orchestrator, evaluate acceptance, record that the accepted changes are already in the main workspace, and run main-workspace verification before marking the task integrated.
 
 ## Maker and Checker Split
 
@@ -157,7 +175,7 @@ Stop and ask the user when:
 - credentials, paid resources, or unsafe operations are needed
 - the next task would exceed the current project scope
 
-When all tasks are Orchestrator-complete, move to Integration Validation and Delivery.
+When all tasks are Orchestrator-complete, move to Integration Validation and Delivery. Terminal `status: delivered` stops automatic continuation.
 
 ## Completion Rule
 
