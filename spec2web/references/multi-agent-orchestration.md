@@ -18,7 +18,7 @@ Choose one mode for the current task or batch and record it in `loop-state.md`:
 - `delegated`: assign one bounded task to one Developer agent, then use an independent checker.
 - `parallel`: assign a validated no-conflict task group to multiple Developer agents in independent worktrees.
 
-Select the smallest mode that preserves maker/checker independence. Do not delegate solely because agent slots exist.
+Select the smallest mode that preserves maker/checker independence. Do not delegate solely because agent slots exist. `high` and `critical` tasks are never eligible for the `single_session` checker strategy.
 
 ## Capability Check
 
@@ -96,7 +96,7 @@ Record one checker strategy:
 
 - `single_session`: only for low-risk `single` work; the main session explicitly switches out of the Developer role before checking.
 - `independent_checker`: one fresh agent combines Tester and Reviewer duties for normal delegated or parallel work.
-- `separate_tester_reviewer`: use separate agents for high-risk, security-sensitive, migration-heavy, or release-critical work.
+- `separate_tester_reviewer`: required for `high` and `critical` work, including security-sensitive, migration-heavy, concurrency-sensitive, shared-contract, or release-critical tasks.
 
 The Developer never checks its own completion claim. Checker agents are read-only unless reassigned as Repairer with explicit failure evidence.
 
@@ -111,6 +111,7 @@ Give each worker only:
 - verification commands,
 - completion criteria,
 - required submission package,
+- risk level, review mode, and declared adversarial failure paths,
 - stop conditions and repair budget.
 
 Workers submit and stop. They do not integrate, expand scope, spawn unplanned workers, or decide completion.
@@ -120,9 +121,10 @@ Workers submit and stop. They do not integrate, expand scope, spawn unplanned wo
 For each submitted task:
 
 1. Run independent checking.
-2. Let Orchestrator decide accept, repair, or block.
-3. Integrate one accepted task.
-4. Run affected verification in the main workspace.
-5. Update state before considering the next integration.
+2. For `high` and `critical` tasks, run the declared adversarial review and record Tester and Reviewer conclusions separately.
+3. Let Orchestrator decide accept, repair, or block.
+4. Integrate one accepted task.
+5. Run affected verification in the main workspace.
+6. Update state before considering the next integration.
 
 Stop the remaining queue on conflict, scope drift, or failed main-workspace verification.

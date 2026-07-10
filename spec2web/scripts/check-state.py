@@ -9,7 +9,7 @@ from itertools import combinations
 from pathlib import Path
 
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 REQUIRED_FILES = [
     "project-rules.md",
@@ -26,6 +26,9 @@ TASK_FIELDS = [
     "goal",
     "dependencies",
     "status",
+    "risk_level",
+    "review_mode",
+    "adversarial_review",
     "handoff_mode",
     "integration_strategy",
     "allowed_paths",
@@ -70,6 +73,13 @@ SYSTEM_DESIGN_MARKERS = [
     "### UI Verification",
 ]
 
+REQUIREMENTS_BASELINE_MARKERS = [
+    "## First-Principles Analysis",
+    "### Core Outcome",
+    "### Hard Constraints and Invariants",
+    "### Assumptions and Evidence",
+]
+
 VALID_LOOP_STATUSES = {"active", "paused", "disabled", "blocked", "delivered"}
 VALID_FILE_STATUSES = {
     "project-rules.md": {"draft", "ready"},
@@ -98,6 +108,8 @@ VALID_INTEGRATION_STRATEGIES = {
 }
 VALID_EXECUTION_MODES = {"single", "delegated", "parallel"}
 VALID_AGENT_CAPABILITIES = {"unknown", "unavailable", "available"}
+VALID_RISK_LEVELS = {"low", "standard", "high", "critical"}
+VALID_REVIEW_MODES = {"standard", "adversarial"}
 VALID_CHECKER_STRATEGIES = {
     "single_session",
     "independent_checker",
@@ -115,6 +127,7 @@ PLACEHOLDER_FRAGMENTS = {
     "requirements-baseline.md": [
         "replace with the first confirmed requirement.",
         "replace with verification method.",
+        "not recorded",
     ],
     "system-design.md": [
         "not recorded",
@@ -312,6 +325,12 @@ def check_structure(state_dir: Path) -> list[str]:
             if marker not in system_design:
                 errors.append(f"system-design.md missing marker: {marker}")
 
+    requirements_baseline = read_text(state_dir, "requirements-baseline.md")
+    if requirements_baseline:
+        for marker in REQUIREMENTS_BASELINE_MARKERS:
+            if marker not in requirements_baseline:
+                errors.append(f"requirements-baseline.md missing marker: {marker}")
+
     task_plan = read_text(state_dir, "task-plan.md")
     if task_plan:
         sections = TASK_SECTION_PATTERN.findall(task_plan)
@@ -330,6 +349,26 @@ def check_structure(state_dir: Path) -> list[str]:
             if status and status not in VALID_TASK_STATUSES:
                 allowed = ", ".join(sorted(VALID_TASK_STATUSES))
                 errors.append(f"{task_id} status must be one of: {allowed}")
+
+            risk_level = task_field_value(body, "risk_level")
+            if risk_level and risk_level not in VALID_RISK_LEVELS:
+                allowed = ", ".join(sorted(VALID_RISK_LEVELS))
+                errors.append(f"{task_id} risk_level must be one of: {allowed}")
+
+            review_mode = task_field_value(body, "review_mode")
+            if review_mode and review_mode not in VALID_REVIEW_MODES:
+                allowed = ", ".join(sorted(VALID_REVIEW_MODES))
+                errors.append(f"{task_id} review_mode must be one of: {allowed}")
+            if risk_level in {"high", "critical"}:
+                if review_mode != "adversarial":
+                    errors.append(
+                        f"{task_id} {risk_level}-risk work requires review_mode: adversarial"
+                    )
+                adversarial_cases = task_list_values(body, "adversarial_review")
+                if not adversarial_cases or adversarial_cases == ["not applicable"]:
+                    errors.append(
+                        f"{task_id} {risk_level}-risk work requires adversarial_review cases"
+                    )
 
             handoff_mode = task_field_value(body, "handoff_mode")
             if handoff_mode and handoff_mode not in VALID_HANDOFF_MODES:
@@ -444,6 +483,7 @@ def check_task_readiness(state_dir: Path, task_id: str | None) -> list[str]:
     selected_workers = integer_value(loop_state, "selected_workers") or 0
     available_slots = integer_value(loop_state, "available_child_slots")
     checker = top_level_value(loop_state, "checker_strategy")
+    risk_level = task_field_value(body, "risk_level")
 
     if handoff_mode == "single_session":
         if execution_mode != "single":
@@ -467,6 +507,14 @@ def check_task_readiness(state_dir: Path, task_id: str | None) -> list[str]:
             errors.append(f"{task_id} delegated work requires known available_child_slots")
         if checker == "single_session":
             errors.append(f"{task_id} delegated work requires an independent checker")
+
+    if risk_level in {"high", "critical"}:
+        if handoff_mode != "pr_worktree":
+            errors.append(f"{task_id} {risk_level}-risk work requires PR/worktree handoff")
+        if checker != "separate_tester_reviewer":
+            errors.append(
+                f"{task_id} {risk_level}-risk work requires separate Tester and Reviewer"
+            )
 
     if available_slots is not None and selected_workers > available_slots:
         errors.append(
@@ -551,6 +599,12 @@ def check_parallel_readiness(
 
         if task_field_value(body, "handoff_mode") != "pr_worktree":
             errors.append(f"{task_id} parallel task requires handoff_mode: pr_worktree")
+
+        risk_level = task_field_value(body, "risk_level")
+        if risk_level in {"high", "critical"} and checker != "separate_tester_reviewer":
+            errors.append(
+                f"{task_id} {risk_level}-risk parallel work requires separate Tester and Reviewer"
+            )
 
         workspace = task_field_value(body, "execution_workspace")
         if not workspace or workspace in {"main", "worktree"}:

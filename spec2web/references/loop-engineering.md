@@ -120,6 +120,8 @@ Reviewer is read-only and checks:
 
 Tester records verification evidence in `validation-log.md`.
 
+For `high` and `critical` tasks, the loop also requires adversarial review: Tester executes declared failure paths, Reviewer evaluates the evidence and remaining risk, and Orchestrator records any disagreement before acceptance.
+
 ## Acceptance Ownership
 
 Workers submit evidence; Orchestrator decides state.

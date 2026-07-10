@@ -1,6 +1,6 @@
 ---
 name: spec2web
-description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through confirmed baselines, phase gates, adaptive single/delegated/parallel agent execution, isolated PR/worktree handoffs, independent checking, serial integration, repair, and delivery reporting.
+description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through first-principles baselines, phase gates, adaptive single/delegated/parallel agent execution, risk-tiered independent and adversarial review, isolated PR/worktree handoffs, serial integration, repair, and delivery reporting.
 ---
 
 # Spec2Web
@@ -52,6 +52,7 @@ Do not write application code until all of these exist and are ready:
 
 - `spec2web/project-rules.md` has `status: ready`,
 - `spec2web/requirements-baseline.md` has `status: confirmed`,
+- the Requirement Baseline records outcome, hard constraints/invariants, assumptions with evidence, and blocking questions,
 - `spec2web/system-design.md` has `status: ready`,
 - `spec2web/task-plan.md` has `status: ready`,
 - `spec2web/loop-state.md`
@@ -73,6 +74,7 @@ Do not accept or mark a task complete until:
 - the Developer has submitted an implementation summary and evidence package,
 - verification results are recorded in `spec2web/validation-log.md`,
 - Reviewer has checked scope, quality, and workflow compliance,
+- high- and critical-risk tasks have passed their declared adversarial review and separate Tester/Reviewer checks,
 - Orchestrator has run the task acceptance gate and chosen accept, repair, or block,
 - Orchestrator has executed a formal integration point when acceptance passed,
 - main-workspace verification passed after integration,
@@ -84,18 +86,19 @@ Follow this sequence:
 
 1. Project Rules
 2. Requirement Baseline
-3. Technology Strategy
-4. Interface Design Baseline
-5. System Design
-6. Task Breakdown
-7. Task Execution Loop
-8. Integration Validation
-9. Delivery
+3. First-Principles Analysis
+4. Technology Strategy
+5. Interface Design Baseline
+6. System Design
+7. Task Breakdown
+8. Task Execution Loop
+9. Integration Validation
+10. Delivery
 
 Phase exit gates:
 
 - Project Rules exits only when implementation-relevant rules and conflicts are recorded and `project-rules.md` is `ready`.
-- Requirement Baseline exits only when requirements and acceptance signals are confirmed and `requirements-baseline.md` is `confirmed`.
+- Requirement Baseline exits only when the outcome, hard constraints/invariants, assumptions with evidence, open questions, requirements, and acceptance signals are confirmed and `requirements-baseline.md` is `confirmed`.
 - System Design exits only when technology, interface, data/API, permissions, and verification decisions are sufficient for the scoped work and `system-design.md` is `ready`.
 - Task Breakdown exits only when every task has a complete contract and `task-plan.md` is `ready`.
 - Task Execution starts only after the execution-phase state check passes.
@@ -169,6 +172,14 @@ Before requirements or coding, read project-level rule files when present:
 
 Summarize implementation-relevant rules into `spec2web/project-rules.md`. User instructions take priority over project rules; project rules take priority over this Skill; this Skill takes priority over default agent habits.
 
+## First-Principles and Review
+
+Before design or task dispatch, distinguish verified facts and constraints from assumptions, record the evidence for important assumptions, and state which unknowns block safe implementation. Treat roles as explicit evaluation standards, not persona prompts.
+
+Every task must be risk-classified. `high` and `critical` tasks require declared adversarial failure paths, `review_mode: adversarial`, and separate Tester and Reviewer roles. Do not impose that overhead on low-risk work.
+
+For the full first-principles, risk, adversarial-review, and disagreement protocol, read `references/reasoning-and-review.md`.
+
 ## State Files
 
 Maintain project memory in `spec2web/`:
@@ -183,7 +194,7 @@ Maintain project memory in `spec2web/`:
 
 Conversation context does not replace these files. On resume, first read `project-rules.md`, `task-plan.md`, and `loop-state.md`.
 
-Require `schema_version: 1.1` in `loop-state.md`.
+Require `schema_version: 1.2` in `loop-state.md`.
 
 For templates and update rules, read `references/state-files.md`.
 
@@ -217,6 +228,9 @@ Every task must have:
 - `goal`
 - `dependencies`
 - `status`
+- `risk_level`
+- `review_mode`
+- `adversarial_review`
 - `handoff_mode`
 - `integration_strategy`
 - `allowed_paths`
@@ -245,7 +259,7 @@ Use role separation with Orchestrator as the fixed main-session role:
 - Repairer fixes failures using explicit evidence.
 - Delivery prepares final reporting.
 
-For normal delegated work, one fresh `independent_checker` may combine Tester and Reviewer duties. Use `separate_tester_reviewer` for high-risk or release-critical work. When safe delegation is unavailable, explicitly switch roles and record the fallback reason. Developer may not self-certify completion or integrate.
+For normal delegated work, one fresh `independent_checker` may combine Tester and Reviewer duties. `high` and `critical` tasks require `separate_tester_reviewer` and adversarial review. When safe delegation is unavailable, explicitly switch roles only for low-risk work and record the fallback reason. Developer may not self-certify completion or integrate.
 
 For detailed role rules, read `references/role-protocol.md`.
 

@@ -24,12 +24,14 @@ Spec2Web helps an agent:
 
 - read project rules before implementation
 - establish a requirements baseline
+- record the core outcome, hard constraints, assumptions with evidence, and blocking questions through first-principles analysis
 - recommend and record a technology strategy
 - define an interface design baseline before frontend work
 - produce a system design
 - break work into bounded tasks
 - choose single, delegated, or parallel execution from current host capacity and task risk
 - execute tasks through PR/worktree handoff: Orchestrator delegates, subagents develop and submit, Orchestrator reviews, tests, accepts, and integrates
+- escalate review by task risk: high-risk work requires adversarial review and separate Tester and Reviewer cross-checks
 - default to task branches and worktrees for implementation tasks in Git projects
 - continue ready tasks until blocked or delivered
 - record validation evidence and delivery notes
@@ -60,6 +62,7 @@ spec2web/
     interface-design.md
     loop-engineering.md
     multi-agent-orchestration.md
+    reasoning-and-review.md
     role-protocol.md
     state-files.md
     task-breakdown.md
@@ -195,7 +198,7 @@ Before final delivery, run the delivery gate:
 python spec2web/scripts/check-state.py --target . --phase delivery
 ```
 
-The checker has three validation depths:
+The checker has five validation phases:
 
 - `structure`: schema, required files, agent-orchestration metadata, design sections, task contracts, and valid status values
 - `execution`: confirmed requirements, ready project/design/task baselines, no placeholders, and an active workflow
@@ -203,7 +206,7 @@ The checker has three validation depths:
 - `parallel`: host capacity, group size, unique worktrees, path conflicts, shared contracts, and checker independence
 - `delivery`: complete tasks, validation evidence, a complete delivery report, and terminal workflow state
 
-The initializer does not overwrite older state files. Use structure-check findings to add missing top-level statuses, design sections, and task `repair_budget`; mark them `ready` or `confirmed` only after their contents satisfy the current gate.
+The initializer does not overwrite older state files. After migrating V1/V1.1 state to schema 1.2, use structure-check findings to add first-principles analysis and task-review fields; mark artifacts `ready` or `confirmed` only after their contents satisfy the current gate.
 
 ## Workflow
 
@@ -212,6 +215,7 @@ The top-level workflow is:
 ```text
 Project Rules
 -> Requirement Baseline
+-> First-Principles Analysis
 -> Technology Strategy
 -> Interface Design Baseline
 -> System Design
@@ -285,5 +289,7 @@ python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_valid
 - Split large work into bounded tasks.
 - Require verification before completion claims.
 - Separate maker and checker roles.
+- Use role responsibilities and evaluation standards, not persona imitation.
+- Require adversarial review and separate Tester/Reviewer roles only for high-risk or critical work.
 - Prefer existing project conventions.
 - Ask the user before changing confirmed requirements, adding high-risk dependencies, using credentials, or consuming paid resources.

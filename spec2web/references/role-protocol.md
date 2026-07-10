@@ -39,7 +39,8 @@ Record the fallback reason in `loop-state.md`.
 ## Planner
 
 - analyze requirements
-- state assumptions
+- record the core outcome, hard constraints/invariants, assumptions, evidence, and open questions before confirming requirements
+- distinguish verified facts from assumptions and stop when an unresolved assumption makes the design unsafe
 - produce `requirements-baseline.md`
 - produce `system-design.md`
 - produce `task-plan.md`
@@ -74,6 +75,7 @@ Developer submission package:
 
 - run task verification
 - add or propose missing behavior tests when appropriate
+- for `high` and `critical` tasks, execute the declared adversarial failure paths and record the observed result
 - record results in `validation-log.md`
 - distinguish pre-existing failures from new failures
 - recommend pass, repair, or block; do not accept or integrate
@@ -93,12 +95,15 @@ Check:
 - submission package is sufficient
 - acceptance gate can be evaluated
 - PR/worktree mode did not bypass integration review
+- for `high` and `critical` tasks, adversarial cases are concrete, evidence-backed, and address remaining risks
 
 Reviewer recommends approve, repair, or block. Reviewer does not integrate or mark the task complete.
 
 ## Independent Checker
 
-For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. Use separate Tester and Reviewer agents for high-risk, security-sensitive, migration-heavy, or release-critical tasks.
+For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. `high` and `critical` tasks require separate Tester and Reviewer agents; the Tester records observed behavior and the Reviewer judges risk, maintainability, scope, and evidence.
+
+When Tester and Reviewer disagree, the Orchestrator records the disagreement, supporting evidence, decision, owner, and residual risk. Do not resolve a disagreement by vote or confidence alone.
 
 ## Repairer
 

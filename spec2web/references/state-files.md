@@ -36,7 +36,7 @@ Use explicit top-level statuses so file existence cannot be mistaken for phase r
 
 Do not change a status merely to satisfy the checker. Change it only after the file's phase exit gate is met.
 
-V1.1 requires `schema_version: 1.1` in `loop-state.md`. For V1 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up changed state files, preserves project content, adds orchestration metadata and Shared Contract Paths, and leaves any older missing business fields for explicit repair.
+V1.2 requires `schema_version: 1.2` in `loop-state.md`. For V1 or V1.1 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up changed state files, preserves project content, adds review metadata and first-principles sections, and leaves business judgments for explicit repair.
 
 ## project-rules.md
 
@@ -88,9 +88,19 @@ status: draft
 |---|---|---|---|
 | REQ-001 | Describe the first confirmed requirement. | Must | How it will be verified. |
 
-## Assumptions
+## First-Principles Analysis
 
-- List explicit assumptions.
+### Core Outcome
+
+- State the user or business outcome that must be true when the work succeeds.
+
+### Hard Constraints and Invariants
+
+- State facts the design must preserve.
+
+### Assumptions and Evidence
+
+- Assumption: evidence and consequence if false.
 
 ## Open Questions
 
@@ -259,6 +269,10 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 - goal: Specific result.
 - dependencies: none
 - status: pending
+- risk_level: standard
+- review_mode: standard
+- adversarial_review:
+  - not applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -298,7 +312,7 @@ Template:
 # Loop State
 
 workflow: spec2web
-schema_version: 1.1
+schema_version: 1.2
 status: active
 current_phase: project_rules
 current_task: null
@@ -355,6 +369,7 @@ Template:
 - command: exact command
 - result: passed or failed
 - evidence: summary of output
+- review: standard or adversarial; Tester and Reviewer conclusions for high/critical work
 - next_action: continue, repair, blocked
 ```
 

@@ -24,12 +24,14 @@ Spec2Web 会帮助智能体：
 
 - 在实现前读取项目规则
 - 建立需求基线
+- 用第一性原理记录核心目标、硬约束、假设证据和阻塞问题
 - 推荐并记录技术栈策略
 - 在前端开发前定义界面设计基线
 - 产出系统设计
 - 将工作拆解成有边界的小任务
 - 根据宿主容量和任务风险选择单会话、单任务委派或并行批次
 - 通过 PR/worktree 交接推进任务：Orchestrator 派发，子代理开发提交，Orchestrator 审查、测试、验收、集成
+- 按任务风险升级审查：高风险任务必须进行对抗性审查，并由独立 Tester 和 Reviewer 交叉审核
 - 在 Git 项目中默认使用 task branch 和 worktree 隔离开发任务
 - 在任务完成后继续推进下一个 ready task，直到阻塞或交付
 - 记录验证证据和交付说明
@@ -60,6 +62,7 @@ spec2web/
     interface-design.md
     loop-engineering.md
     multi-agent-orchestration.md
+    reasoning-and-review.md
     role-protocol.md
     state-files.md
     task-breakdown.md
@@ -195,7 +198,7 @@ python spec2web/scripts/check-state.py --target . --phase execution
 python spec2web/scripts/check-state.py --target . --phase delivery
 ```
 
-检查脚本提供三种深度：
+检查脚本提供五个阶段：
 
 - `structure`：schema、必要文件、智能体编排元数据、设计章节、任务契约和状态取值
 - `execution`：已确认需求、已就绪的规则/设计/任务基线、无占位内容和 active 工作流
@@ -203,7 +206,7 @@ python spec2web/scripts/check-state.py --target . --phase delivery
 - `parallel`：宿主容量、批次大小、独立 worktree、路径冲突、共享契约和检查者独立性
 - `delivery`：全部任务完成、验证证据完整、交付报告完成和终态工作流
 
-旧版本状态文件不会被初始化脚本覆盖；请按结构检查结果补充缺失的顶层状态、设计章节和任务 `repair_budget`，确认内容满足门禁后再改为 `ready` 或 `confirmed`。
+旧版本状态文件不会被初始化脚本覆盖。将 V1/V1.1 状态迁移到 schema 1.2 后，请按结构检查结果补充第一性原理分析和任务审查字段，确认内容满足门禁后再改为 `ready` 或 `confirmed`。
 
 ## 工作流
 
@@ -212,6 +215,7 @@ python spec2web/scripts/check-state.py --target . --phase delivery
 ```text
 Project Rules
 -> Requirement Baseline
+-> First-Principles Analysis
 -> Technology Strategy
 -> Interface Design Baseline
 -> System Design
@@ -285,5 +289,7 @@ python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_valid
 - 将大任务拆成有边界的小任务。
 - 声称完成前必须验证。
 - 分离 Maker 和 Checker 角色。
+- 用角色责任与评价标准驱动审查，而非只要求智能体模仿角色语气。
+- 仅对高风险或关键任务强制对抗性审查和 Tester/Reviewer 分离。
 - 优先沿用现有项目约定。
 - 改变已确认需求、增加高风险依赖、使用凭证或消耗付费资源前，必须询问用户。

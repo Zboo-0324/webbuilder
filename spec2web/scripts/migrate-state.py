@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate Spec2Web V1 state metadata to the V1.1 schema."""
+"""Migrate Spec2Web V1 state metadata to the V1.2 schema."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 ORCHESTRATION_FIELDS = [
     ("schema_version", SCHEMA_VERSION),
@@ -31,6 +31,22 @@ SHARED_CONTRACT_SECTION = """## Shared Contract Paths
 
 """
 
+FIRST_PRINCIPLES_SECTION = """## First-Principles Analysis
+
+### Core Outcome
+
+- not recorded
+
+### Hard Constraints and Invariants
+
+- not recorded
+
+### Assumptions and Evidence
+
+- not recorded
+
+"""
+
 
 def migrate_loop_state(text: str) -> str:
     text = text.replace(
@@ -42,7 +58,7 @@ def migrate_loop_state(text: str) -> str:
         "- unauthorized external AI workers are forbidden",
     )
     version_match = re.search(r"(?m)^schema_version:\s*([^\s#]+)\s*$", text)
-    if version_match and version_match.group(1) not in {"1.0", SCHEMA_VERSION}:
+    if version_match and version_match.group(1) not in {"1.0", "1.1", SCHEMA_VERSION}:
         raise ValueError(
             f"unsupported schema_version: {version_match.group(1)}; "
             "manual migration required"
@@ -80,19 +96,47 @@ def migrate_loop_state(text: str) -> str:
 
 
 def migrate_task_plan(text: str) -> str:
-    if re.search(r"(?m)^## Shared Contract Paths\s*$", text):
-        return text
     marker = "## Tasks"
     if marker not in text:
         raise ValueError("task-plan.md missing ## Tasks")
-    return text.replace(marker, SHARED_CONTRACT_SECTION + marker, 1)
+    if not re.search(r"(?m)^## Shared Contract Paths\s*$", text):
+        text = text.replace(marker, SHARED_CONTRACT_SECTION + marker, 1)
+
+    def add_review_fields(match: re.Match[str]) -> str:
+        status_line = match.group(0)
+        return (
+            status_line
+            + "- risk_level: standard\n"
+            + "- review_mode: standard\n"
+            + "- adversarial_review:\n"
+            + "  - not applicable\n"
+        )
+
+    return re.sub(
+        r"(?m)^- status:\s*[^\n]+\n(?!- risk_level:)",
+        add_review_fields,
+        text,
+    )
+
+
+def migrate_requirements_baseline(text: str) -> str:
+    if re.search(r"(?m)^## First-Principles Analysis\s*$", text):
+        return text
+    marker = "## Assumptions"
+    if marker in text:
+        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+    marker = "## Open Questions"
+    if marker in text:
+        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+    return text.rstrip() + "\n\n" + FIRST_PRINCIPLES_SECTION
 
 
 def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
     state_dir = target / "spec2web"
     loop_state = state_dir / "loop-state.md"
     task_plan = state_dir / "task-plan.md"
-    for path in (loop_state, task_plan):
+    requirements_baseline = state_dir / "requirements-baseline.md"
+    for path in (loop_state, task_plan, requirements_baseline):
         if not path.exists():
             raise ValueError(f"missing required file: {path}")
 
@@ -103,8 +147,15 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
     migrated = {
         loop_state: migrate_loop_state(original[loop_state]),
         task_plan: migrate_task_plan(original[task_plan]),
+        requirements_baseline: migrate_requirements_baseline(
+            original[requirements_baseline]
+        ),
     }
-    changed = [path for path in (loop_state, task_plan) if migrated[path] != original[path]]
+    changed = [
+        path
+        for path in (loop_state, task_plan, requirements_baseline)
+        if migrated[path] != original[path]
+    ]
     if dry_run or not changed:
         return changed, None
 
@@ -118,7 +169,7 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate Spec2Web state to V1.1.")
+    parser = argparse.ArgumentParser(description="Migrate Spec2Web state to V1.2.")
     parser.add_argument(
         "--target",
         default=".",

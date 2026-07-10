@@ -51,6 +51,10 @@ Each task must include:
 - goal: One concrete outcome.
 - dependencies: TASK-000 or none
 - status: pending
+- risk_level: standard
+- review_mode: standard
+- adversarial_review:
+  - not applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -95,6 +99,16 @@ Use these status values:
 
 Only Orchestrator may set `accepted`, `integrated`, or `complete`. Developer, Tester, and Reviewer provide evidence; they do not self-certify completion.
 
+## Risk and Review Mode
+
+Classify every task as `low`, `standard`, `high`, or `critical`.
+
+- `low` tasks may use `review_mode: standard` and the documented single-session fallback.
+- `standard` delegated work requires an independent checker.
+- `high` and `critical` tasks require `review_mode: adversarial`, concrete `adversarial_review` cases, PR/worktree handoff, and `checker_strategy: separate_tester_reviewer`.
+
+The declared adversarial cases must name credible failure paths relevant to the task, such as invalid or boundary input, timeout and retry, partial failure, concurrency, authorization, rollback, compatibility, deployment, or observability. Record the resulting evidence in `validation-log.md`.
+
 Do not start implementation until `task-plan.md` has top-level `status: ready` and the execution-phase state check passes. Set it back to `draft` whenever requirements, shared contracts, or task boundaries need replanning.
 
 ## Handoff Mode
@@ -132,6 +146,8 @@ Each `acceptance_gate` must be specific enough for Orchestrator to decide accept
 - requirement IDs covered,
 - main-workspace verification needed after integration,
 - rejection conditions such as scope drift, missing evidence, conflict, or failed tests.
+
+For `high` and `critical` tasks, also include the declared failure paths, the required Tester evidence, the required Reviewer conclusion, and how disagreement will be resolved.
 
 ## Parallel Eligibility
 

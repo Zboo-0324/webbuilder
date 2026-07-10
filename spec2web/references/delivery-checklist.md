@@ -7,6 +7,7 @@ Before final delivery, verify and record evidence.
 - requirements are mapped to tasks
 - all tasks are marked complete by Orchestrator or explicitly listed as not completed
 - validation commands have been run
+- high- and critical-risk tasks include Tester and Reviewer evidence for their declared adversarial cases
 - failures are resolved or documented
 - project run instructions are current
 - known risks are documented

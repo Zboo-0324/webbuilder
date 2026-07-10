@@ -43,9 +43,19 @@ status: draft
 |---|---|---|---|
 | REQ-001 | Replace with the first confirmed requirement. | Must | Replace with verification method. |
 
-## Assumptions
+## First-Principles Analysis
 
-- None recorded yet.
+### Core Outcome
+
+- not recorded
+
+### Hard Constraints and Invariants
+
+- not recorded
+
+### Assumptions and Evidence
+
+- not recorded
 
 ## Open Questions
 
@@ -196,6 +206,10 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 - goal: Replace with one concrete outcome.
 - dependencies: none
 - status: pending
+- risk_level: standard
+- review_mode: standard
+- adversarial_review:
+  - not applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -225,7 +239,7 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
     "loop-state.md": """# Loop State
 
 workflow: spec2web
-schema_version: 1.1
+schema_version: 1.2
 status: active
 current_phase: project_rules
 current_task: null
