@@ -2,6 +2,14 @@
 
 Spec2Web uses Loop Engineering as a workflow discipline, not as a background runtime.
 
+## Contents
+
+- Core rule and external memory
+- Phase gates and adaptive dispatch
+- Bounded work and maker/checker split
+- Acceptance, worktrees, and repair
+- State updates, continuation, and completion
+
 ## Core Rule
 
 Spec2Web owns the loop. Other tools, Skills, subagents, worktrees, pull requests, and shell commands can assist a step, but they do not own the project state or decide that the project is complete.
@@ -53,6 +61,23 @@ python <skill-root>/scripts/check-state.py --target <project-root> --phase deliv
 ```
 
 If either check fails, repair state or evidence instead of bypassing the gate.
+
+## Adaptive Agent Dispatch
+
+Before each task or batch, inspect host agent capability and free child slots, then record the selected mode in `loop-state.md`:
+
+- `single`: no child Developer; use explicit main-session role switching.
+- `delegated`: one child Developer, followed by an independent checker.
+- `parallel`: two or more child Developers in validated independent worktrees, followed by independent checking and serial integration.
+
+Run the matching dispatch gate:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+```
+
+Do not hardcode worker count or assume that child agents have isolated filesystems. Reuse released child slots for checking and repair. Read `multi-agent-orchestration.md` for the full selection and queue rules.
 
 ## Bounded Work
 

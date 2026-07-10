@@ -180,6 +180,14 @@ status: draft
 Default to one task at a time. Use controlled multi-worker mode only for no-conflict tasks.
 For non-Git or single-session tasks, pair `handoff_mode: single_session` with `integration_strategy: direct_apply`.
 
+## Shared Contract Paths
+
+- spec2web/
+- package.json
+- pyproject.toml
+- migrations/
+- openapi/
+
 ## Tasks
 
 ### TASK-001: Replace with first task title
@@ -217,19 +225,25 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
     "loop-state.md": """# Loop State
 
 workflow: spec2web
+schema_version: 1.1
 status: active
 current_phase: project_rules
 current_task: null
 active_parallel_group: null
+execution_mode: single
+host_agent_capability: unknown
+available_child_slots: unknown
+selected_workers: 0
+checker_strategy: single_session
 
 ## Active Constraints
 
 - one task per worker
 - continue ready tasks until blocked or delivered
 - main session remains Orchestrator
-- implementation tasks use PR/worktree handoff when Git is available
+- delegated or parallel tasks use PR/worktree handoff when Git is available
 - delegated workers submit, Orchestrator accepts
-- external AI workers are forbidden
+- unauthorized external AI workers are forbidden
 - no unplanned full-project generation
 - every task maps to requirements
 - update state before moving on

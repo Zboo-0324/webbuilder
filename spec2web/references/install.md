@@ -1,6 +1,6 @@
 # Installation
 
-Spec2Web V1 is a portable Skill folder. Install the whole `spec2web/` directory, not only `SKILL.md`.
+Spec2Web V1.1 is a portable Skill folder. Install the whole `spec2web/` directory, not only `SKILL.md`.
 
 ## Codex
 

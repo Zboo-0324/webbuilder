@@ -7,6 +7,14 @@ First freeze cross-cutting contracts.
 Then deliver vertical business slices.
 ```
 
+## Contents
+
+- Cross-cutting and vertical tasks
+- Task contract and status ownership
+- Handoff and integration strategies
+- Acceptance and parallel eligibility
+- Required refusal rules
+
 ## Cross-Cutting Tasks
 
 Use these only when needed:
@@ -127,6 +135,18 @@ Each `acceptance_gate` must be specific enough for Orchestrator to decide accept
 
 ## Parallel Eligibility
 
+Define project-specific serial-only paths near the top of `task-plan.md`:
+
+```markdown
+## Shared Contract Paths
+
+- spec2web/
+- package.json
+- pyproject.toml
+- migrations/
+- openapi/
+```
+
 Tasks can run in the same parallel group only when:
 
 - all dependencies are complete,
@@ -135,6 +155,12 @@ Tasks can run in the same parallel group only when:
 - each task has independent verification,
 - each task has an independent worktree,
 - Orchestrator records the group in `loop-state.md`.
+
+Before dispatch, run the parallel gate. Do not spawn the batch if it fails:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+```
 
 Shared contract files are serial by default:
 

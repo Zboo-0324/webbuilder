@@ -1,8 +1,8 @@
 # Role Protocol
 
-Spec2Web separates responsibilities around a fixed Orchestrator. The main session stays Orchestrator and delegates implementation through PR/worktree handoff when the host provides subagent or subsession capability.
+Spec2Web separates responsibilities around a fixed Orchestrator. The main session stays Orchestrator and selects `single`, `delegated`, or `parallel` execution from the host's current capabilities.
 
-Do not call Claude, external AI services, remote agent products, or another model provider to simulate delegation. Delegation means using the current host's available local agent/session tools.
+Use agents or subsessions exposed by the current Codex host, including host-authorized local or Codex cloud execution. Do not call third-party AI services, external agent products, or another model provider unless the user explicitly authorizes it.
 
 Fallback to single-session role switching only when:
 
@@ -12,10 +12,18 @@ Fallback to single-session role switching only when:
 
 Record the fallback reason in `loop-state.md`.
 
+## Contents
+
+- Orchestrator and Planner
+- Developer and Tester
+- Reviewer and Independent Checker
+- Repairer and Delivery
+
 ## Orchestrator
 
 - read and update `loop-state.md`
 - select the current task or safe parallel batch
+- record host agent capability, available child slots, selected workers, execution mode, and checker strategy
 - delegate Developer, Tester, Reviewer, and Repairer roles when available
 - ensure project rules are followed
 - create and record task branches, worktrees, and PR handoff status
@@ -87,6 +95,10 @@ Check:
 - PR/worktree mode did not bypass integration review
 
 Reviewer recommends approve, repair, or block. Reviewer does not integrate or mark the task complete.
+
+## Independent Checker
+
+For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. Use separate Tester and Reviewer agents for high-risk, security-sensitive, migration-heavy, or release-critical tasks.
 
 ## Repairer
 

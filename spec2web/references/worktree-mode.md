@@ -2,6 +2,14 @@
 
 PR/worktree mode isolates task execution and makes each worker handoff reviewable. It is a workflow protocol, not a background scheduler.
 
+## Contents
+
+- Definition and preconditions
+- Single-task and multi-worker modes
+- Orchestrator and worker duties
+- PR package and integration point
+- Integration rules and naming
+
 ## Definition
 
 `PR` means a reviewable handoff. It can be:
@@ -9,7 +17,7 @@ PR/worktree mode isolates task execution and makes each worker handoff reviewabl
 - a real remote pull request when the repo has a configured remote and the user permits pushing, or
 - a local PR package: task branch, worktree path, commit hash, diff command, verification evidence, and submission summary.
 
-Do not call Claude, external AI services, remote agent products, or another model provider for worker execution. Workers must be host-provided subagents, subsessions, or the documented single-session fallback.
+Workers must be agents or subsessions exposed by the current Codex host. Do not call third-party AI services, external agent products, or another model provider unless the user explicitly authorizes it.
 
 ## Preconditions
 
@@ -20,6 +28,7 @@ Do not call Claude, external AI services, remote agent products, or another mode
 - Each implementation task has `handoff_mode: pr_worktree`.
 - Orchestrator controls branch, worktree, PR, and integration decisions.
 - Workers submit evidence; Orchestrator accepts, integrates, and marks completion.
+- The task or parallel dispatch gate passes.
 
 If the project is not a Git repository, ask the user before initializing Git.
 
@@ -42,6 +51,12 @@ Orchestrator selects one task
 ```
 
 ## Controlled Multi-Worker Mode
+
+Validate the batch before creating workers:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+```
 
 ```text
 Orchestrator selects a no-conflict parallel group

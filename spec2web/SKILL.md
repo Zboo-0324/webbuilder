@@ -1,6 +1,6 @@
 ---
 name: spec2web
-description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through project rules, confirmed requirements, technology and interface baselines, phase readiness gates, bounded task plans, role-separated PR/worktree loops, validation, repair, and delivery reporting.
+description: Use when the user asks to initialize, enable, start, resume, or run Spec2Web for a web project, or when the current project contains spec2web/loop-state.md with status active. Guides full-stack web delivery through confirmed baselines, phase gates, adaptive single/delegated/parallel agent execution, isolated PR/worktree handoffs, independent checking, serial integration, repair, and delivery reporting.
 ---
 
 # Spec2Web
@@ -31,13 +31,20 @@ When the user asks to initialize Spec2Web:
 1. Resolve `<skill-root>` to the folder containing this `SKILL.md` and `<project-root>` to the target project.
 2. Read project rule files before changing state.
 3. Run `python <skill-root>/scripts/init-state.py --target <project-root>`.
-4. Run the structure check and repair missing fields in older state files without overwriting confirmed content:
+4. If existing state predates schema 1.1, dry-run and then apply the non-destructive migration:
+
+```text
+python <skill-root>/scripts/migrate-state.py --target <project-root> --dry-run
+python <skill-root>/scripts/migrate-state.py --target <project-root>
+```
+
+5. Run the structure check and repair remaining fields in older state files without overwriting confirmed content:
 
 ```text
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
 ```
 
-5. Populate Project Rules, Requirement Baseline, System Design, and Task Breakdown in order. Keep generated artifacts `draft` until their phase exit gates are satisfied.
+6. Populate Project Rules, Requirement Baseline, System Design, and Task Breakdown in order. Keep generated artifacts `draft` until their phase exit gates are satisfied.
 
 ## Hard Gates
 
@@ -62,7 +69,7 @@ Do not accept or mark a task complete until:
 - the task maps to requirement IDs,
 - the task has a clear verification method,
 - the task has an integration strategy,
-- implementation happened through PR/worktree handoff when Git worktree mode was available,
+- delegated or parallel implementation used the assigned PR/worktree handoff; single-session work used `direct_apply`,
 - the Developer has submitted an implementation summary and evidence package,
 - verification results are recorded in `spec2web/validation-log.md`,
 - Reviewer has checked scope, quality, and workflow compliance,
@@ -99,6 +106,7 @@ Each task-level loop follows:
 ```text
 Read State
 -> Select Next Task or Parallel Batch
+-> Select single, delegated, or parallel Execution Mode
 -> Create Task Branch and Worktree when Git is available
 -> Plan
 -> Delegate Worker with Task Contract
@@ -112,9 +120,9 @@ Read State
 
 ## Orchestration Policy
 
-The main session stays Orchestrator. It owns state, task selection, PR/worktree setup, delegation, acceptance, integration decisions, and continuation.
+The main session stays Orchestrator. It owns state, task selection, execution-mode selection, PR/worktree setup, delegation, acceptance, integration decisions, and continuation.
 
-Prefer host-provided subagents or subsessions for Developer, Tester, Reviewer, and Repairer roles. Do not call Claude, external AI services, remote agent products, or another model provider to satisfy this policy.
+Use agents or subsessions exposed by the current Codex host, including host-authorized local or Codex cloud execution. Do not call third-party AI services, external agent products, or another model provider unless the user explicitly authorizes it.
 
 The old external-agent pattern maps to this local pattern:
 
@@ -122,11 +130,19 @@ The old external-agent pattern maps to this local pattern:
 Codex Orchestrator -> host subagent worker -> task worktree/branch -> PR handoff -> Orchestrator review/test/integrate
 ```
 
-Use single-session role switching only when subagents are unavailable, the task is too coupled to split safely, or the task is small enough that delegation overhead would exceed the work. Record the fallback reason in `loop-state.md`.
+Choose adaptively:
+
+- `single` for small, coupled, non-Git, or non-delegable work,
+- `delegated` for one bounded worker task followed by an independent checker,
+- `parallel` for a machine-validated no-conflict batch in independent worktrees.
+
+Record host capability, free child slots, selected workers, execution mode, and checker strategy in `loop-state.md`. Do not delegate only because slots exist, and do not assume subagents have isolated filesystems.
 
 For `single_session` tasks, use `integration_strategy: direct_apply`. Treat Orchestrator acceptance plus main-workspace verification as the formal integration point; do not claim a Git merge or commit when none occurred.
 
 Workers submit work for acceptance; they do not decide completion. A Developer may commit only to the assigned task branch and may move a task to `submitted_for_acceptance`. Only Orchestrator may mark it `accepted`, `integrated`, `complete`, `blocked`, or `needs_repair`.
+
+For the complete selection algorithm, task and parallel gates, checker strategies, and integration queue, read `references/multi-agent-orchestration.md`.
 
 ## Continuation Policy
 
@@ -166,6 +182,8 @@ Maintain project memory in `spec2web/`:
 - `delivery-report.md`
 
 Conversation context does not replace these files. On resume, first read `project-rules.md`, `task-plan.md`, and `loop-state.md`.
+
+Require `schema_version: 1.1` in `loop-state.md`.
 
 For templates and update rules, read `references/state-files.md`.
 
@@ -227,7 +245,7 @@ Use role separation with Orchestrator as the fixed main-session role:
 - Repairer fixes failures using explicit evidence.
 - Delivery prepares final reporting.
 
-When subagents are available, delegate Developer, Tester, Reviewer, and Repairer roles. When they are not available, explicitly switch roles and record the fallback reason. Developer may not self-certify completion or integrate.
+For normal delegated work, one fresh `independent_checker` may combine Tester and Reviewer duties. Use `separate_tester_reviewer` for high-risk or release-critical work. When safe delegation is unavailable, explicitly switch roles and record the fallback reason. Developer may not self-certify completion or integrate.
 
 For detailed role rules, read `references/role-protocol.md`.
 
@@ -246,7 +264,19 @@ Parallel tasks must satisfy:
 - each task uses an independent worktree,
 - Orchestrator records the batch in `loop-state.md`.
 
-Even when development is parallel, integration is serial. Each integration requires worker submission, Tester evidence, Reviewer approval, Orchestrator acceptance, a recorded integration strategy, main-workspace verification, and state updates.
+Even when development is parallel, integration is serial. Each integration requires worker submission, independent checker evidence or separate Tester/Reviewer evidence, Orchestrator acceptance, a recorded integration strategy, main-workspace verification, and state updates.
+
+Before dispatching one task, run:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
+```
+
+Before dispatching a parallel batch, run:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+```
 
 For PR/worktree handoff details, read `references/worktree-mode.md`.
 

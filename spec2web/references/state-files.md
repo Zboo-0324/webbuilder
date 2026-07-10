@@ -2,6 +2,14 @@
 
 Spec2Web stores project memory in `spec2web/`. These files are the source of truth after initialization.
 
+## Contents
+
+- Required files and readiness statuses
+- Project rules, requirements, and system design
+- Task plan and loop state
+- Validation log and delivery report
+- Migration and phase checks
+
 ## Required Files
 
 ```text
@@ -28,7 +36,7 @@ Use explicit top-level statuses so file existence cannot be mistaken for phase r
 
 Do not change a status merely to satisfy the checker. Change it only after the file's phase exit gate is met.
 
-For state directories created by an older Skill version, rerunning `init-state.py` will not overwrite existing files. Add the missing top-level statuses, required design sections, and per-task `repair_budget` manually; keep migrated artifacts `draft` until their contents satisfy the current gate.
+V1.1 requires `schema_version: 1.1` in `loop-state.md`. For V1 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up changed state files, preserves project content, adds orchestration metadata and Shared Contract Paths, and leaves any older missing business fields for explicit repair.
 
 ## project-rules.md
 
@@ -235,6 +243,14 @@ status: draft
 Default to one task at a time. Use controlled multi-worker mode only for no-conflict tasks.
 For non-Git or single-session tasks, pair `handoff_mode: single_session` with `integration_strategy: direct_apply`.
 
+## Shared Contract Paths
+
+- spec2web/
+- package.json
+- pyproject.toml
+- migrations/
+- openapi/
+
 ## Tasks
 
 ### TASK-001: Task title
@@ -274,25 +290,33 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 
 Purpose: record current workflow status and active constraints.
 
+Keep the top-level orchestration keys and machine-checked Active Constraints exactly as generated. Add project-specific constraints as new bullets; do not paraphrase or replace protocol markers. Use `unknown` for uninspected host capability or slot counts.
+
 Template:
 
 ```markdown
 # Loop State
 
 workflow: spec2web
+schema_version: 1.1
 status: active
 current_phase: project_rules
 current_task: null
 active_parallel_group: null
+execution_mode: single
+host_agent_capability: unknown
+available_child_slots: unknown
+selected_workers: 0
+checker_strategy: single_session
 
 ## Active Constraints
 
 - one task per worker
 - continue ready tasks until blocked or delivered
 - main session remains Orchestrator
-- implementation tasks use PR/worktree handoff when Git is available
+- delegated or parallel tasks use PR/worktree handoff when Git is available
 - delegated workers submit, Orchestrator accepts
-- external AI workers are forbidden
+- unauthorized external AI workers are forbidden
 - no unplanned full-project generation
 - every task maps to requirements
 - update state before moving on
@@ -368,14 +392,27 @@ status: draft
 
 ## Phase Checks
 
+For existing V1 state, migrate before checking:
+
+```text
+python <skill-root>/scripts/migrate-state.py --target <project-root> --dry-run
+python <skill-root>/scripts/migrate-state.py --target <project-root>
+```
+
+The migration creates a timestamped backup directory under the project's `spec2web/` state folder before writing. Keep it until structure and execution checks pass, then remove it or keep it local; do not commit migration backups.
+
 Run the bundled checker from the installed or project-local Skill directory:
 
 ```text
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
 python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
+python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
 ```
 
-- `structure` checks required files, workflow markers, design sections, task contracts, and allowed status values.
+- `structure` checks schema, required files, workflow markers, orchestration metadata, design sections, task contracts, and allowed status values.
 - `execution` additionally requires confirmed or ready baselines, no placeholder content, and an active workflow.
+- `task` additionally checks the selected task, dependencies, execution mode, handoff, workspace, and current-task state.
+- `parallel` additionally checks host capacity, group size, dependencies, unique worktrees, path overlap, Shared Contract Paths, and checker independence.
 - `delivery` additionally requires all tasks complete, recorded validation evidence, a complete delivery report, and terminal workflow state.

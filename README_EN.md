@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**A workflow Skill for full-stack web delivery with AI coding agents**
+**An adaptive multi-agent workflow Skill for full-stack web delivery**
 
 Requirements baseline · Technology strategy · Interface design · Task breakdown · Loop Engineering · PR/worktree handoff · Validation
 
@@ -28,6 +28,7 @@ Spec2Web helps an agent:
 - define an interface design baseline before frontend work
 - produce a system design
 - break work into bounded tasks
+- choose single, delegated, or parallel execution from current host capacity and task risk
 - execute tasks through PR/worktree handoff: Orchestrator delegates, subagents develop and submit, Orchestrator reviews, tests, accepts, and integrates
 - default to task branches and worktrees for implementation tasks in Git projects
 - continue ready tasks until blocked or delivered
@@ -35,7 +36,7 @@ Spec2Web helps an agent:
 
 ## What It Does Not Do
 
-Spec2Web V1 does not:
+Spec2Web V1.1 does not:
 
 - generate an application from a prompt
 - provide a full-stack code template
@@ -58,6 +59,7 @@ spec2web/
     install.md
     interface-design.md
     loop-engineering.md
+    multi-agent-orchestration.md
     role-protocol.md
     state-files.md
     task-breakdown.md
@@ -66,6 +68,7 @@ spec2web/
   scripts/
     init-state.py
     check-state.py
+    migrate-state.py
 ```
 
 ## Install
@@ -165,6 +168,15 @@ Initialize state files:
 python spec2web/scripts/init-state.py --target .
 ```
 
+Migrate V1 state to schema 1.1:
+
+```powershell
+python spec2web/scripts/migrate-state.py --target . --dry-run
+python spec2web/scripts/migrate-state.py --target .
+```
+
+Migration first creates a timestamped backup under the project's `spec2web/` state folder. Remove it after validation or keep it local; do not commit migration backups.
+
 Check the state structure:
 
 ```powershell
@@ -185,8 +197,10 @@ python spec2web/scripts/check-state.py --target . --phase delivery
 
 The checker has three validation depths:
 
-- `structure`: required files, workflow markers, design sections, task contracts, and valid status values
+- `structure`: schema, required files, agent-orchestration metadata, design sections, task contracts, and valid status values
 - `execution`: confirmed requirements, ready project/design/task baselines, no placeholders, and an active workflow
+- `task`: selected task, dependency, execution-mode, handoff, workspace, and current-task readiness
+- `parallel`: host capacity, group size, unique worktrees, path conflicts, shared contracts, and checker independence
 - `delivery`: complete tasks, validation evidence, a complete delivery report, and terminal workflow state
 
 The initializer does not overwrite older state files. Use structure-check findings to add missing top-level statuses, design sections, and task `repair_budget`; mark them `ready` or `confirmed` only after their contents satisfy the current gate.
@@ -212,6 +226,7 @@ Each task loop is:
 ```text
 Read State
 -> Select Next Task or Parallel Batch
+-> Select single, delegated, or parallel Execution Mode
 -> Create Task Branch and Worktree when Git is available
 -> Delegate Worker with Task Contract
 -> Worker Commits to Task Branch
@@ -228,17 +243,20 @@ Application code starts only after `project-rules.md`, `system-design.md`, and `
 
 ## PR/Worktree Mode
 
-Spec2Web defaults to PR/worktree handoff in Git projects:
+Spec2Web uses PR/worktree handoff for delegated or parallel tasks in Git projects:
 
 - default: one task at a time
 - controlled multi-worker mode: only for no-conflict task batches
+- worker count: no more than both ready tasks and host-reported free child-agent slots
 - the Orchestrator creates the task branch and worktree
 - subagent workers develop only in their assigned worktree and commit to the task branch
 - workers submit a local PR package or remote PR, then stop
 - the Orchestrator integrates serially through `merge`, `squash_merge`, `cherry_pick`, or `integration_commit`
 - verification runs in the main workspace after each integration
 
-V1 does not provide an automatic worker pool or unattended integration scheduler.
+V1.1 does not provide an automatic worker pool or unattended integration scheduler.
+
+V1.1 permits agents exposed by the current Codex host, including host-authorized local or Codex cloud execution. It does not call third-party AI services or external agent products without explicit user authorization.
 
 For non-Git projects or explicit single-session fallback, use `handoff_mode: single_session` with `integration_strategy: direct_apply`. This records that accepted changes already exist in the main workspace and require Orchestrator verification without inventing a merge or commit.
 
@@ -262,7 +280,7 @@ python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_valid
 
 ## Design Principles
 
-- Keep V1 lightweight.
+- Keep V1.1 lightweight.
 - Use explicit state files as project memory.
 - Split large work into bounded tasks.
 - Require verification before completion claims.
@@ -276,7 +294,7 @@ Potential V2 additions:
 
 - richer distribution packaging for Codex, Claude Code, and Hermes
 - optional global CLI
-- machine-readable state schemas and migration tooling
+- richer task submission and handoff validators
 - automatic worktree pool and conflict analysis
 - example projects
 - marketplace or hub distribution metadata

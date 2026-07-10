@@ -1,6 +1,6 @@
 # Interface Design
 
-Interface design is part of System Design for user-facing web projects. It does not need to become a full design system in V1, but frontend tasks must not start from vague page names.
+Interface design is part of System Design for user-facing web projects. It does not need to become a full design system in V1.1, but frontend tasks must not start from vague page names.
 
 Keep `system-design.md` at `status: draft` until the required interface baseline is concrete enough to verify. Use `not applicable` for genuinely irrelevant fields instead of leaving `not recorded` placeholders.
 

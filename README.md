@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**面向 AI 编程智能体的全栈 Web 交付 Workflow Skill**
+**面向全栈 Web 交付的自适应多智能体 Workflow Skill**
 
 需求基线 · 技术栈推荐 · 界面设计基线 · 任务拆解 · Loop Engineering · PR/Worktree 交接 · 验证交付
 
@@ -28,6 +28,7 @@ Spec2Web 会帮助智能体：
 - 在前端开发前定义界面设计基线
 - 产出系统设计
 - 将工作拆解成有边界的小任务
+- 根据宿主容量和任务风险选择单会话、单任务委派或并行批次
 - 通过 PR/worktree 交接推进任务：Orchestrator 派发，子代理开发提交，Orchestrator 审查、测试、验收、集成
 - 在 Git 项目中默认使用 task branch 和 worktree 隔离开发任务
 - 在任务完成后继续推进下一个 ready task，直到阻塞或交付
@@ -35,7 +36,7 @@ Spec2Web 会帮助智能体：
 
 ## 它不做什么
 
-Spec2Web V1 不会：
+Spec2Web V1.1 不会：
 
 - 根据一句提示生成完整应用
 - 提供全栈代码模板
@@ -58,6 +59,7 @@ spec2web/
     install.md
     interface-design.md
     loop-engineering.md
+    multi-agent-orchestration.md
     role-protocol.md
     state-files.md
     task-breakdown.md
@@ -66,6 +68,7 @@ spec2web/
   scripts/
     init-state.py
     check-state.py
+    migrate-state.py
 ```
 
 ## 安装
@@ -165,6 +168,15 @@ spec2web/
 python spec2web/scripts/init-state.py --target .
 ```
 
+将 V1 状态迁移到 schema 1.1：
+
+```powershell
+python spec2web/scripts/migrate-state.py --target . --dry-run
+python spec2web/scripts/migrate-state.py --target .
+```
+
+迁移会先在项目的 `spec2web/` 状态目录中创建时间戳备份；验证通过后请删除或保持本地，不要提交备份目录。
+
 检查状态结构：
 
 ```powershell
@@ -185,8 +197,10 @@ python spec2web/scripts/check-state.py --target . --phase delivery
 
 检查脚本提供三种深度：
 
-- `structure`：必要文件、工作流标记、设计章节、任务契约和状态取值
+- `structure`：schema、必要文件、智能体编排元数据、设计章节、任务契约和状态取值
 - `execution`：已确认需求、已就绪的规则/设计/任务基线、无占位内容和 active 工作流
+- `task`：选定任务、依赖、执行模式、交接方式、工作区和当前任务状态
+- `parallel`：宿主容量、批次大小、独立 worktree、路径冲突、共享契约和检查者独立性
 - `delivery`：全部任务完成、验证证据完整、交付报告完成和终态工作流
 
 旧版本状态文件不会被初始化脚本覆盖；请按结构检查结果补充缺失的顶层状态、设计章节和任务 `repair_budget`，确认内容满足门禁后再改为 `ready` 或 `confirmed`。
@@ -212,6 +226,7 @@ Project Rules
 ```text
 Read State
 -> Select Next Task or Parallel Batch
+-> Select single, delegated, or parallel Execution Mode
 -> Create Task Branch and Worktree when Git is available
 -> Delegate Worker with Task Contract
 -> Worker Commits to Task Branch
@@ -228,17 +243,20 @@ Read State
 
 ## PR/Worktree 模式
 
-Spec2Web 在 Git 项目中默认使用 PR/worktree 交接：
+Spec2Web 对 Git 项目中的委派或并行任务使用 PR/worktree 交接：
 
 - 默认一次执行一个任务
 - 受控多 worker 模式只允许无冲突任务批次
+- worker 数量不得超过 ready task 数量和宿主报告的空闲子智能体槽位
 - Orchestrator 创建 task branch 和 worktree
 - 子代理 worker 只在自己的 worktree 中开发并提交到 task branch
 - worker 提交本地 PR 包或远程 PR 后停止
 - Orchestrator 通过 `merge`、`squash_merge`、`cherry_pick` 或 `integration_commit` 串行集成
 - 每次集成后都需要在主工作区重新验证
 
-V1 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
+V1.1 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
+
+V1.1 允许使用当前 Codex 宿主提供的本地或 Codex 云端智能体；未经用户明确授权，不调用第三方 AI 服务或外部智能体产品。
 
 对于非 Git 项目或明确采用单会话回退的任务，使用 `handoff_mode: single_session` 和 `integration_strategy: direct_apply`；它表示改动已在主工作区中，由 Orchestrator 验收并完成主工作区验证，不虚构 merge 或 commit。
 
@@ -262,7 +280,7 @@ python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_valid
 
 ## 设计原则
 
-- V1 保持轻量。
+- V1.1 保持轻量。
 - 用显式状态文件作为项目记忆。
 - 将大任务拆成有边界的小任务。
 - 声称完成前必须验证。
@@ -276,7 +294,7 @@ V2 可以考虑：
 
 - 更完整的 Codex、Claude Code、Hermes 分发打包
 - 可选全局 CLI
-- 机器可读的状态 Schema 和迁移工具
+- 更完整的任务提交包和交接验证器
 - 自动 worktree 池和冲突分析
 - 示例项目
 - marketplace 或 hub 分发元数据
