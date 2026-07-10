@@ -9,7 +9,7 @@ Spec2Web uses four complementary controls to make delivery decisions reliable wi
 
 ## First-Principles Analysis
 
-First-principles analysis begins only after the User Discovery Gate. Existing specifications and repository evidence can inform questions, but they cannot substitute for user answers about outcome, audience, constraints, success signals, and non-goals.
+First-principles analysis begins only after the User Discovery Gate. The AI first synthesizes a working hypothesis from the user's brief, specifications, and repository evidence. It asks one high-impact question at a time, preferably as concrete choices with a recommendation, and asks the user only for decisions that cannot be inferred safely. The user confirms or corrects the resulting requirements summary; the user is not expected to author the core requirements from scratch.
 
 Before confirming `requirements-baseline.md`, record the first-principles analysis, then use it to confirm requirements:
 

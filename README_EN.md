@@ -228,7 +228,7 @@ Project Rules
 -> Delivery
 ```
 
-WebBuilder must ask the user about the outcome, audience, must-have requirements, constraints, success signals, and non-goals before confirming requirements. `spec.md`, README files, and existing code are evidence for those questions, not substitutes for user confirmation; `discovery_status` must remain `pending` until the user answers.
+WebBuilder first reads the user's one-line brief or existing requirements document and forms an AI-authored product hypothesis. It asks one genuinely consequential question at a time, preferably with 2-3 concrete choices and a recommendation, rather than asking the user to write the core requirements or complete an expert questionnaire. The user then confirms the AI-synthesized requirements and design; `discovery_status` remains `pending` until approval.
 
 Each task loop is:
 

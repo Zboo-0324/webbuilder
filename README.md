@@ -228,7 +228,7 @@ Project Rules
 -> Delivery
 ```
 
-WebBuilder 必须先向用户澄清目标、受众、必须需求、约束、成功信号和非目标。仓库中的 `spec.md`、README 或现有代码只能作为提问依据，不能被默认为用户确认；需求基线的 `discovery_status` 在用户回答前必须保持 `pending`。
+WebBuilder 会先读取用户的一句话需求或已有需求文档，由 AI 形成产品需求假设，再一次只询问一个真正影响方向的问题。问题优先提供 2-3 个具体选项和推荐，不要求用户自行撰写核心需求或回答专业问卷；最终由用户确认 AI 汇总的需求与设计。`discovery_status` 在用户确认前保持 `pending`。
 
 单个任务循环：
 

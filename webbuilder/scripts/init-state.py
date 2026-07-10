@@ -44,12 +44,15 @@ status: draft
 
 discovery_status: pending
 
-### Questions for User
+### AI Working Hypothesis
 
-- What outcome should WebBuilder deliver, for whom, and how will success be recognized?
-- What constraints, integrations, data, or non-goals must be preserved?
+- not recorded
 
-### User Answers
+### Questions Asked
+
+- generated dynamically after reading the user's brief and project context
+
+### User Decisions
 
 - not recorded
 

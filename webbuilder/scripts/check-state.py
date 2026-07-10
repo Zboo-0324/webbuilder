@@ -482,7 +482,7 @@ def check_execution_readiness(state_dir: Path, loop_status: str) -> list[str]:
             "requirements-baseline.md discovery_status must be confirmed after user answers"
         )
     if re.search(r"(?mi)^- not recorded\s*$", requirements_text):
-        errors.append("requirements-baseline.md user discovery answers are not recorded")
+        errors.append("requirements-baseline.md user discovery decisions are not recorded")
 
     actual_loop_status = top_level_value(read_text(state_dir, "loop-state.md"), "status")
     if actual_loop_status != loop_status:

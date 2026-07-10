@@ -86,12 +86,15 @@ status: draft
 
 discovery_status: pending
 
-### Questions for User
+### AI Working Hypothesis
 
-- What outcome should be delivered, and who is it for?
-- What are the must-have requirements, constraints, success signals, and non-goals?
+- not recorded
 
-### User Answers
+### Questions Asked
+
+- generated dynamically after reading the user's brief and project context
+
+### User Decisions
 
 - not recorded
 

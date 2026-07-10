@@ -177,16 +177,21 @@ Summarize implementation-relevant rules into `webbuilder/project-rules.md`. User
 
 ## Mandatory User Discovery Gate
 
-Before filling `requirements-baseline.md`, `system-design.md`, or `task-plan.md`, pause and ask the user a concise batch of clarifying questions. Do not treat `spec.md`, README files, existing code, or inferred conventions as user confirmation; they are evidence to discuss, not answers to invent.
+Before filling `requirements-baseline.md`, `system-design.md`, or `task-plan.md`, read the user's brief and the current project context. The brief may be a detailed requirements document or a single sentence. Extract verified facts, likely intent, constraints, and unresolved decisions, then form an AI-authored working hypothesis for the product. Do not ask the user to write the core requirements or design the system for you.
 
-Ask at minimum:
+Run discovery as a natural dialogue:
 
-- What outcome should be delivered, and who is it for?
-- What are the must-have requirements and explicit non-goals?
-- What constraints, integrations, data, permissions, or compatibility requirements must be preserved?
-- How will the user recognize success, and what should be deferred?
+1. Explore relevant project files, requirements documents, and recent decisions first.
+2. Draft the likely outcome, users, minimum scope, success signal, and non-goals internally.
+3. Ask only the highest-impact unresolved question, one question per message.
+4. Prefer 2-3 concrete choices with the recommended option first and a short trade-off. Use an open question only when choices would distort the answer.
+5. Incorporate the answer, update the working hypothesis, and ask the next question only if it can materially change scope or design.
+6. When the intent is sufficiently clear, propose 2-3 approaches with trade-offs and a recommendation.
+7. Present a concise requirements/design summary and ask the user to approve or correct it.
 
-Use the host's structured question UI when available. Otherwise ask these questions directly in the conversation and wait for the user's response. Record the answers under `User Discovery` and set `discovery_status: confirmed` only after the user responds. If the user has already supplied explicit answers in the current request, summarize them back for confirmation before proceeding; do not silently skip the gate.
+Do not repeat facts already clear from the user's document. Do not ask broad expert questions such as “What constraints, integrations, data, permissions, or compatibility requirements must be preserved?” Instead, infer likely answers and turn genuine uncertainty into an easy decision. Example: “The document suggests the first release is for internal reviewers. Should the MVP optimize for review speed (recommended), annotation throughput, or client reporting?”
+
+Use the host's structured question UI when available. Otherwise ask conversationally and wait. Record the AI working hypothesis, questions asked, and user decisions under `User Discovery`. Set `discovery_status: confirmed` only after the user approves the summarized requirements; do not silently skip the gate.
 
 ## First-Principles and Review
 
