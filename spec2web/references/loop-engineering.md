@@ -26,8 +26,9 @@ Read State
 -> Worker Commit on Task Branch
 -> PR Handoff Submission
 -> Test and Review
--> Orchestrator Acceptance
+-> Acceptance Gate
 -> Formal Integration Point
+-> Integration Gate and Main-Workspace Verification
 -> Repair or Record
 -> Update State
 ```
@@ -75,6 +76,8 @@ Run the matching dispatch gate:
 ```text
 python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase acceptance --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase integration --task <TASK-ID>
 ```
 
 Do not hardcode worker count or assume that child agents have isolated filesystems. Reuse released child slots for checking and repair. Read `multi-agent-orchestration.md` for the full selection and queue rules.
@@ -145,6 +148,8 @@ Controlled multi-worker mode is allowed only when:
 - dependencies are complete
 - allowed paths do not overlap
 - shared contract files are not modified
+- declared shared resources and conflict domains do not intersect
+- integration dependencies do not require serial execution
 - each task has independent verification
 - each task has an independent worktree
 - Orchestrator records the batch in `loop-state.md`
@@ -160,6 +165,7 @@ Repair loops must be evidence-driven and bounded:
 - same error fingerprint 3 times: stop
 
 Each repair must cite new evidence, change one main cause, rerun verification, and update state.
+Record `repair_attempt`, `last_failure_fingerprint`, and `same_fingerprint_count` in the task contract. The checker rejects attempts beyond the task budget and stops automatic repair when the same fingerprint reaches three occurrences.
 
 Stop and ask the user when repair needs:
 

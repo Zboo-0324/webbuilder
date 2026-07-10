@@ -51,10 +51,21 @@ Each task must include:
 - goal: One concrete outcome.
 - dependencies: TASK-000 or none
 - status: pending
-- risk_level: standard
+- risk_level: unclassified
+- risk_basis:
+  - Concrete reason and affected surface.
+- checker_strategy: single_session
 - review_mode: standard
 - adversarial_review:
-  - not applicable
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -79,6 +90,15 @@ Each task must include:
   - none
 - execution_workspace: main or worktree
 - parallel_group: none or PG-000
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- repair_attempt: 0
+- last_failure_fingerprint: none
+- same_fingerprint_count: 0
 - integration_policy: orchestrator_review_then_serial_integration
 ```
 
@@ -101,11 +121,14 @@ Only Orchestrator may set `accepted`, `integrated`, or `complete`. Developer, Te
 
 ## Risk and Review Mode
 
-Classify every task as `low`, `standard`, `high`, or `critical`.
+Classify every task as `unclassified`, `low`, `standard`, `high`, or `critical`, and record a concrete `risk_basis`. `unclassified` may pass structure validation but cannot pass execution, task, or parallel validation.
 
-- `low` tasks may use `review_mode: standard` and the documented single-session fallback.
-- `standard` delegated work requires an independent checker.
-- `high` and `critical` tasks require `review_mode: adversarial`, concrete `adversarial_review` cases, PR/worktree handoff, and `checker_strategy: separate_tester_reviewer`.
+- `low` tasks may use `review_mode: standard` and `checker_strategy: single_session`.
+- `standard` delegated work requires `checker_strategy: independent_checker`.
+- `high` tasks require `review_mode: adversarial`, concrete `adversarial_review` cases, PR/worktree handoff, and `checker_strategy: separate_tester_reviewer`.
+- `critical` tasks inherit the high-risk controls and require `user_approval: approved`, approval evidence, rollback plan, recovery point, and residual-risk owner.
+
+The task contract owns its risk and checker strategy. `loop-state.md` may record the derived `active_checker_strategy` for the current task, but it cannot lower or replace the task contract.
 
 The declared adversarial cases must name credible failure paths relevant to the task, such as invalid or boundary input, timeout and retry, partial failure, concurrency, authorization, rollback, compatibility, deployment, or observability. Record the resulting evidence in `validation-log.md`.
 
@@ -171,6 +194,10 @@ Tasks can run in the same parallel group only when:
 - each task has independent verification,
 - each task has an independent worktree,
 - Orchestrator records the group in `loop-state.md`.
+- their declared `shared_resources` and `conflict_domains` do not intersect;
+- their `integration_dependencies` are complete and do not form a cycle.
+
+Declare `shared_resources` (database, generated artifact, port, external service, or `none`), `conflict_domains` (auth, routing, schema, build, deployment, global-state, or `none`), and `integration_dependencies` for every parallel candidate. If the machine cannot judge a conflict, record an explicit Orchestrator safety reason and run serially.
 
 Before dispatch, run the parallel gate. Do not spawn the batch if it fails:
 

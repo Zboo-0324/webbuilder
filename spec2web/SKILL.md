@@ -31,7 +31,7 @@ When the user asks to initialize Spec2Web:
 1. Resolve `<skill-root>` to the folder containing this `SKILL.md` and `<project-root>` to the target project.
 2. Read project rule files before changing state.
 3. Run `python <skill-root>/scripts/init-state.py --target <project-root>`.
-4. If existing state predates schema 1.1, dry-run and then apply the non-destructive migration:
+4. If existing state predates schema 1.3, dry-run and then apply the non-destructive migration:
 
 ```text
 python <skill-root>/scripts/migrate-state.py --target <project-root> --dry-run
@@ -85,13 +85,13 @@ Do not accept or mark a task complete until:
 Follow this sequence:
 
 1. Project Rules
-2. Requirement Baseline
-3. First-Principles Analysis
+2. First-Principles Analysis
+3. Requirement Baseline
 4. Technology Strategy
 5. Interface Design Baseline
 6. System Design
 7. Task Breakdown
-8. Task Execution Loop
+8. Task Execution Loop: submission, acceptance, integration, and main-workspace verification
 9. Integration Validation
 10. Delivery
 
@@ -139,7 +139,7 @@ Choose adaptively:
 - `delegated` for one bounded worker task followed by an independent checker,
 - `parallel` for a machine-validated no-conflict batch in independent worktrees.
 
-Record host capability, free child slots, selected workers, execution mode, and checker strategy in `loop-state.md`. Do not delegate only because slots exist, and do not assume subagents have isolated filesystems.
+Record host capability, free child slots, selected workers, execution mode, and the derived `active_checker_strategy` in `loop-state.md`. The task contract owns `checker_strategy`; do not use runtime state to override it. Do not delegate only because slots exist, and do not assume subagents have isolated filesystems.
 
 For `single_session` tasks, use `integration_strategy: direct_apply`. Treat Orchestrator acceptance plus main-workspace verification as the formal integration point; do not claim a Git merge or commit when none occurred.
 
@@ -176,7 +176,7 @@ Summarize implementation-relevant rules into `spec2web/project-rules.md`. User i
 
 Before design or task dispatch, distinguish verified facts and constraints from assumptions, record the evidence for important assumptions, and state which unknowns block safe implementation. Treat roles as explicit evaluation standards, not persona prompts.
 
-Every task must be risk-classified. `high` and `critical` tasks require declared adversarial failure paths, `review_mode: adversarial`, and separate Tester and Reviewer roles. Do not impose that overhead on low-risk work.
+Every task must declare `risk_level`, a concrete `risk_basis`, and a task-owned `checker_strategy`. `unclassified` tasks may be structurally valid but cannot start execution. `high` and `critical` tasks require declared adversarial failure paths, `review_mode: adversarial`, and separate Tester and Reviewer roles. Critical tasks additionally require user approval, rollback, recovery-point, and residual-risk-owner evidence. Do not impose that overhead on low-risk work.
 
 For the full first-principles, risk, adversarial-review, and disagreement protocol, read `references/reasoning-and-review.md`.
 
@@ -194,7 +194,7 @@ Maintain project memory in `spec2web/`:
 
 Conversation context does not replace these files. On resume, first read `project-rules.md`, `task-plan.md`, and `loop-state.md`.
 
-Require `schema_version: 1.2` in `loop-state.md`.
+Require `schema_version: 1.3` in `loop-state.md`.
 
 For templates and update rules, read `references/state-files.md`.
 
@@ -229,8 +229,15 @@ Every task must have:
 - `dependencies`
 - `status`
 - `risk_level`
+- `risk_basis`
+- `checker_strategy`
 - `review_mode`
 - `adversarial_review`
+- `user_approval`
+- `approval_evidence`
+- `rollback_plan`
+- `recovery_point`
+- `residual_risk_owner`
 - `handoff_mode`
 - `integration_strategy`
 - `allowed_paths`
@@ -243,6 +250,12 @@ Every task must have:
 - `risks_or_blockers`
 - `execution_workspace`
 - `parallel_group`
+- `shared_resources`
+- `conflict_domains`
+- `integration_dependencies`
+- `repair_attempt`
+- `last_failure_fingerprint`
+- `same_fingerprint_count`
 - `integration_policy`
 
 For task rules and templates, read `references/task-breakdown.md`.
@@ -259,7 +272,7 @@ Use role separation with Orchestrator as the fixed main-session role:
 - Repairer fixes failures using explicit evidence.
 - Delivery prepares final reporting.
 
-For normal delegated work, one fresh `independent_checker` may combine Tester and Reviewer duties. `high` and `critical` tasks require `separate_tester_reviewer` and adversarial review. When safe delegation is unavailable, explicitly switch roles only for low-risk work and record the fallback reason. Developer may not self-certify completion or integrate.
+For normal delegated work, one fresh `independent_checker` may combine Tester and Reviewer duties. `high` and `critical` tasks require `separate_tester_reviewer` and adversarial review. Tester, Reviewer, and Developer identities must be distinct whenever the declared strategy requires it. When safe delegation is unavailable, explicitly switch roles only for low-risk work and record the fallback reason. Developer may not self-certify completion or integrate.
 
 For detailed role rules, read `references/role-protocol.md`.
 
@@ -290,6 +303,13 @@ Before dispatching a parallel batch, run:
 
 ```text
 python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+```
+
+Before accepting or completing a task, run the evidence gates:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase acceptance --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase integration --task <TASK-ID>
 ```
 
 For PR/worktree handoff details, read `references/worktree-mode.md`.

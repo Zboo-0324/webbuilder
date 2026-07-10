@@ -198,15 +198,17 @@ python spec2web/scripts/check-state.py --target . --phase execution
 python spec2web/scripts/check-state.py --target . --phase delivery
 ```
 
-检查脚本提供五个阶段：
+检查脚本提供七个阶段：
 
 - `structure`：schema、必要文件、智能体编排元数据、设计章节、任务契约和状态取值
 - `execution`：已确认需求、已就绪的规则/设计/任务基线、无占位内容和 active 工作流
-- `task`：选定任务、依赖、执行模式、交接方式、工作区和当前任务状态
-- `parallel`：宿主容量、批次大小、独立 worktree、路径冲突、共享契约和检查者独立性
-- `delivery`：全部任务完成、验证证据完整、交付报告完成和终态工作流
+- `task`：选定任务、依赖、任务级审核策略、执行模式、交接方式、工作区和当前任务状态
+- `parallel`：宿主容量、批次大小、独立 worktree、路径与声明式语义冲突、每任务审核策略
+- `acceptance`：逐任务提交包、身份独立性、对抗性案例、分歧和 critical 控制证据
+- `integration`：已验收任务、集成策略与提交、主工作区复验证据
+- `delivery`：全部任务的验收和集成证据闭环、交付报告完成和终态工作流
 
-旧版本状态文件不会被初始化脚本覆盖。将 V1/V1.1 状态迁移到 schema 1.2 后，请按结构检查结果补充第一性原理分析和任务审查字段，确认内容满足门禁后再改为 `ready` 或 `confirmed`。
+旧版本状态文件不会被初始化脚本覆盖。将 V1、V1.0、V1.1 或 V1.2 状态迁移到 schema 1.3 后，缺少风险依据的任务会被标记为 `unclassified`，必须由 Planner 显式补充分类后才能执行。
 
 ## 工作流
 
@@ -214,8 +216,8 @@ python spec2web/scripts/check-state.py --target . --phase delivery
 
 ```text
 Project Rules
--> Requirement Baseline
 -> First-Principles Analysis
+-> Requirement Baseline
 -> Technology Strategy
 -> Interface Design Baseline
 -> System Design
@@ -236,8 +238,10 @@ Read State
 -> Worker Commits to Task Branch
 -> PR Handoff Submission
 -> Test and Review
--> Orchestrator Acceptance
--> Formal Integration Point or Repair or Record
+-> Acceptance Gate
+-> Formal Integration Point
+-> Integration Gate and Main-Workspace Verification
+-> Repair or Record
 -> Update State
 ```
 

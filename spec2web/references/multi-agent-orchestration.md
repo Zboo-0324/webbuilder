@@ -37,7 +37,7 @@ Use only these state values:
 - `host_agent_capability`: `unknown`, `unavailable`, or `available`
 - `available_child_slots`: `unknown` or a non-negative integer
 - `selected_workers`: a non-negative integer counting Developer workers, not later checker agents
-- `checker_strategy`: `single_session`, `independent_checker`, or `separate_tester_reviewer`
+- `active_checker_strategy`: derived runtime value for the current task (`single_session`, `independent_checker`, `separate_tester_reviewer`, or `mixed` for a mixed-risk batch)
 
 For `single` work, leave capability or slots as `unknown` when they were not inspected. Do not invent values such as `none` or `not_required`.
 
@@ -76,6 +76,9 @@ The selected group must satisfy:
 - `allowed_paths` do not overlap,
 - no `allowed_paths` intersect the task plan's Shared Contract Paths,
 - each task has independent verification,
+- each task has a classified risk with a documented basis and a task-owned checker strategy,
+- declared `shared_resources` and `conflict_domains` do not intersect,
+- declared `integration_dependencies` do not require serial execution,
 - selected worker count matches the group size and does not exceed available child slots.
 
 Development may run in parallel. Acceptance and integration remain serial.
@@ -92,11 +95,13 @@ The task gate checks execution readiness, dependency completion, selected execut
 
 ## Checker Strategy
 
-Record one checker strategy:
+Each task contract owns one checker strategy; `loop-state.md` records only the active derived value:
 
 - `single_session`: only for low-risk `single` work; the main session explicitly switches out of the Developer role before checking.
 - `independent_checker`: one fresh agent combines Tester and Reviewer duties for normal delegated or parallel work.
 - `separate_tester_reviewer`: required for `high` and `critical` work, including security-sensitive, migration-heavy, concurrency-sensitive, shared-contract, or release-critical tasks.
+
+`unclassified` work cannot be dispatched. Critical work also requires approved user evidence, a rollback plan, recovery point, and residual-risk owner before acceptance. In a mixed-risk parallel group, validate each task's strategy separately rather than using one global strategy to lower a high-risk task's controls.
 
 The Developer never checks its own completion claim. Checker agents are read-only unless reassigned as Repairer with explicit failure evidence.
 

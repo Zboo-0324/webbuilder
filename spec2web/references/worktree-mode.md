@@ -44,8 +44,9 @@ Orchestrator selects one task
 -> Developer submits local or remote PR package
 -> Tester verifies the submitted branch or worktree
 -> Reviewer checks diff, evidence, scope, and project rules
--> Orchestrator evaluates the acceptance gate
+-> Orchestrator records evidence and runs the acceptance gate
 -> Orchestrator executes the selected integration strategy
+-> Orchestrator records evidence and runs the integration gate
 -> main workspace verification runs after integration
 -> state files are updated
 ```
@@ -121,7 +122,12 @@ Acceptance is not completion. A task reaches the formal integration point only w
 - `cherry_pick`: cherry-pick one or more task commits when only selected commits should enter mainline.
 - `integration_commit`: manually apply or combine changes into a new commit when several accepted task branches must be reconciled together.
 
-Record the chosen strategy, resulting commit hash, and post-integration verification in `loop-state.md` or `validation-log.md`.
+Record the chosen strategy, resulting commit hash (or `direct_apply` only for single-session work), and post-integration verification in the task's `validation-log.md` integration record. Run the acceptance and integration gates before changing the task status:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase acceptance --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase integration --task <TASK-ID>
+```
 
 Use `integration_commit` sparingly. It is for Orchestrator-owned reconciliation after review, not a way for workers to bypass task branches or PR packages.
 
@@ -133,6 +139,7 @@ Use `integration_commit` sparingly. It is for Orchestrator-owned reconciliation 
 - Orchestrator alone marks `accepted`, `integrated`, or `complete`.
 - Diff review is required before integration.
 - Acceptance gate evaluation is required before integration.
+- Integration gate evaluation is required before marking a task complete.
 - Main-workspace verification is required after each integration.
 - Conflicts stop the integration queue.
 - Scope drift rejects the integration.

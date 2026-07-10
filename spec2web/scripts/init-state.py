@@ -37,12 +37,6 @@ status: draft
 
 status: draft
 
-## Requirements
-
-| ID | Requirement | Priority | Acceptance Signal |
-|---|---|---|---|
-| REQ-001 | Replace with the first confirmed requirement. | Must | Replace with verification method. |
-
 ## First-Principles Analysis
 
 ### Core Outcome
@@ -60,6 +54,12 @@ status: draft
 ## Open Questions
 
 - None recorded yet.
+
+## Confirmed Requirements
+
+| ID | Requirement | Priority | Acceptance Signal |
+|---|---|---|---|
+| REQ-001 | Replace with the first confirmed requirement. | Must | Replace with verification method. |
 """,
     "system-design.md": """# System Design
 
@@ -206,10 +206,21 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 - goal: Replace with one concrete outcome.
 - dependencies: none
 - status: pending
-- risk_level: standard
+- risk_level: unclassified
+- risk_basis:
+  - not recorded
+- checker_strategy: single_session
 - review_mode: standard
 - adversarial_review:
-  - not applicable
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -234,12 +245,21 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
   - none
 - execution_workspace: main
 - parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- repair_attempt: 0
+- last_failure_fingerprint: none
+- same_fingerprint_count: 0
 - integration_policy: orchestrator_review_then_serial_integration
 """,
     "loop-state.md": """# Loop State
 
 workflow: spec2web
-schema_version: 1.2
+schema_version: 1.3
 status: active
 current_phase: project_rules
 current_task: null
@@ -248,7 +268,7 @@ execution_mode: single
 host_agent_capability: unknown
 available_child_slots: unknown
 selected_workers: 0
-checker_strategy: single_session
+active_checker_strategy: single_session
 
 ## Active Constraints
 

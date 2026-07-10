@@ -14,6 +14,8 @@ Before final delivery, verify and record evidence.
 - credentials are not committed
 - local absolute paths are not embedded in deliverables
 - every task has `status: complete`
+- every task has an accepted `TASK-ID / acceptance` record with independent identity and review evidence
+- every task has a `TASK-ID / integration` record with matching strategy and passed main-workspace verification
 - `delivery-report.md` has `status: complete`
 - `loop-state.md` has `current_phase: delivery` and `status: delivered`
 - the delivery-phase state check passes

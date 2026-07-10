@@ -9,7 +9,7 @@ Spec2Web uses four complementary controls to make delivery decisions reliable wi
 
 ## First-Principles Analysis
 
-Before confirming `requirements-baseline.md`, record:
+Before confirming `requirements-baseline.md`, record the first-principles analysis, then use it to confirm requirements:
 
 - the user or business outcome that must be true when the work succeeds;
 - hard constraints and invariants that the solution must not violate;
@@ -36,14 +36,19 @@ One agent may switch roles only for low-risk single-session work, and the switch
 
 ## Risk Classification
 
-Every task declares one `risk_level` and one `review_mode`:
+Every task declares `risk_level`, `risk_basis`, `checker_strategy`, and `review_mode`:
 
+- `unclassified`: no evidence supports a risk judgment yet; it may pass structure validation but cannot be dispatched.
 - `low`: localized, reversible, low-impact work; `review_mode: standard` is sufficient.
 - `standard`: normal feature or maintenance work; use an independent checker for delegated work.
 - `high`: security, permissions, migrations, concurrency, external integrations, shared contracts, destructive actions, or material reliability risk; use `review_mode: adversarial` and separate Tester and Reviewer roles.
 - `critical`: release-critical or irreversible work, or work with material user, financial, data-loss, safety, or compliance impact; use the same controls as `high` plus explicit user confirmation for any unresolved risk.
 
-Classify conservatively. If the impact of failure is unclear, use `high` until evidence justifies a lower level.
+Do not infer risk from a file path, task title, or an old review mode. If a migration cannot preserve a documented `risk_basis`, set the task to `unclassified`. Classify conservatively: if the impact of failure is unclear, use `high` only when there is evidence for that classification; otherwise leave the task `unclassified` until the Planner records a basis.
+
+The task contract is the single source of truth for `risk_level`, `risk_basis`, `checker_strategy`, and review requirements. `loop-state.md` records only the derived `active_checker_strategy` for the current task. `validation-log.md` records evidence and decisions; it never upgrades a task contract or task status.
+
+Critical work additionally requires `user_approval: approved`, non-empty approval evidence, rollback plan, recovery point, and residual-risk owner before acceptance.
 
 ## Adversarial Review
 

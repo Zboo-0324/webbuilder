@@ -198,15 +198,17 @@ Before final delivery, run the delivery gate:
 python spec2web/scripts/check-state.py --target . --phase delivery
 ```
 
-The checker has five validation phases:
+The checker has seven validation phases:
 
 - `structure`: schema, required files, agent-orchestration metadata, design sections, task contracts, and valid status values
 - `execution`: confirmed requirements, ready project/design/task baselines, no placeholders, and an active workflow
-- `task`: selected task, dependency, execution-mode, handoff, workspace, and current-task readiness
-- `parallel`: host capacity, group size, unique worktrees, path conflicts, shared contracts, and checker independence
-- `delivery`: complete tasks, validation evidence, a complete delivery report, and terminal workflow state
+- `task`: selected task, dependency, task-owned checker strategy, execution-mode, handoff, workspace, and current-task readiness
+- `parallel`: host capacity, group size, unique worktrees, path and declared semantic conflicts, and per-task checker strategies
+- `acceptance`: per-task submission package, independent identities, adversarial cases, disagreements, and critical controls
+- `integration`: accepted task, matching integration strategy and commit, and main-workspace verification evidence
+- `delivery`: acceptance and integration evidence closure for every completed task, a complete delivery report, and terminal workflow state
 
-The initializer does not overwrite older state files. After migrating V1/V1.1 state to schema 1.2, use structure-check findings to add first-principles analysis and task-review fields; mark artifacts `ready` or `confirmed` only after their contents satisfy the current gate.
+The initializer does not overwrite older state files. After migrating V1, V1.0, V1.1, or V1.2 state to schema 1.3, tasks without a documented risk basis become `unclassified` and must be explicitly classified before dispatch.
 
 ## Workflow
 
@@ -214,8 +216,8 @@ The top-level workflow is:
 
 ```text
 Project Rules
--> Requirement Baseline
 -> First-Principles Analysis
+-> Requirement Baseline
 -> Technology Strategy
 -> Interface Design Baseline
 -> System Design
@@ -236,8 +238,10 @@ Read State
 -> Worker Commits to Task Branch
 -> PR Handoff Submission
 -> Test and Review
--> Orchestrator Acceptance
--> Formal Integration Point or Repair or Record
+-> Acceptance Gate
+-> Formal Integration Point
+-> Integration Gate and Main-Workspace Verification
+-> Repair or Record
 -> Update State
 ```
 

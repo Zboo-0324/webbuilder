@@ -23,7 +23,7 @@ Record the fallback reason in `loop-state.md`.
 
 - read and update `loop-state.md`
 - select the current task or safe parallel batch
-- record host agent capability, available child slots, selected workers, execution mode, and checker strategy
+- record host agent capability, available child slots, selected workers, execution mode, and the derived active checker strategy
 - delegate Developer, Tester, Reviewer, and Repairer roles when available
 - ensure project rules are followed
 - create and record task branches, worktrees, and PR handoff status
@@ -35,6 +35,7 @@ Record the fallback reason in `loop-state.md`.
 - use `direct_apply` for accepted `single_session` work already present in the main workspace
 - mark tasks `accepted`, `integrated`, `complete`, `needs_repair`, or `blocked`
 - stop on conflicts, failed validation, or scope drift
+- record acceptance and integration evidence in `validation-log.md`; task status remains owned by `task-plan.md`
 
 ## Planner
 
@@ -71,6 +72,8 @@ Developer submission package:
 - verification commands run and results
 - risks, limitations, or follow-up
 
+The Orchestrator records the Developer identity with the acceptance evidence so the checker can prove that required Tester and Reviewer identities are independent.
+
 ## Tester
 
 - run task verification
@@ -101,7 +104,7 @@ Reviewer recommends approve, repair, or block. Reviewer does not integrate or ma
 
 ## Independent Checker
 
-For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. `high` and `critical` tasks require separate Tester and Reviewer agents; the Tester records observed behavior and the Reviewer judges risk, maintainability, scope, and evidence.
+For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties when `checker_strategy: independent_checker`. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. `high` and `critical` tasks require `checker_strategy: separate_tester_reviewer`: Developer, Tester, and Reviewer identities are all distinct. The Tester records observed behavior and the Reviewer judges risk, maintainability, scope, and evidence.
 
 When Tester and Reviewer disagree, the Orchestrator records the disagreement, supporting evidence, decision, owner, and residual risk. Do not resolve a disagreement by vote or confidence alone.
 
@@ -111,6 +114,7 @@ When Tester and Reviewer disagree, the Orchestrator records the disagreement, su
 - change one main cause per attempt
 - stay within repair budget
 - update `validation-log.md`
+- record the failure fingerprint and new evidence before incrementing a repair attempt
 - return the task to `submitted_for_acceptance` only after new evidence exists
 
 ## Delivery

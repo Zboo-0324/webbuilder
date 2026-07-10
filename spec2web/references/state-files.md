@@ -36,7 +36,7 @@ Use explicit top-level statuses so file existence cannot be mistaken for phase r
 
 Do not change a status merely to satisfy the checker. Change it only after the file's phase exit gate is met.
 
-V1.2 requires `schema_version: 1.2` in `loop-state.md`. For V1 or V1.1 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up changed state files, preserves project content, adds review metadata and first-principles sections, and leaves business judgments for explicit repair.
+V1.3 requires `schema_version: 1.3` in `loop-state.md`. For V1, V1.0, V1.1, or V1.2 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up every changed state file, preserves project content, adds only mechanical metadata, and sets tasks without a documented risk basis to `unclassified` for explicit Planner classification.
 
 ## project-rules.md
 
@@ -82,12 +82,6 @@ Template:
 
 status: draft
 
-## Requirements
-
-| ID | Requirement | Priority | Acceptance Signal |
-|---|---|---|---|
-| REQ-001 | Describe the first confirmed requirement. | Must | How it will be verified. |
-
 ## First-Principles Analysis
 
 ### Core Outcome
@@ -105,6 +99,12 @@ status: draft
 ## Open Questions
 
 - List questions that block safe implementation.
+
+## Confirmed Requirements
+
+| ID | Requirement | Priority | Acceptance Signal |
+|---|---|---|---|
+| REQ-001 | Describe the first confirmed requirement. | Must | How it will be verified. |
 ```
 
 ## system-design.md
@@ -269,10 +269,21 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 - goal: Specific result.
 - dependencies: none
 - status: pending
-- risk_level: standard
+- risk_level: unclassified
+- risk_basis:
+  - Record the concrete reason and affected surface before dispatch.
+- checker_strategy: single_session
 - review_mode: standard
 - adversarial_review:
-  - not applicable
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
 - handoff_mode: pr_worktree
 - integration_strategy: squash_merge
 - allowed_paths:
@@ -297,6 +308,15 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
   - none
 - execution_workspace: main or worktree
 - parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- repair_attempt: 0
+- last_failure_fingerprint: none
+- same_fingerprint_count: 0
 - integration_policy: orchestrator_review_then_serial_integration
 ```
 
@@ -312,7 +332,7 @@ Template:
 # Loop State
 
 workflow: spec2web
-schema_version: 1.2
+schema_version: 1.3
 status: active
 current_phase: project_rules
 current_task: null
@@ -321,7 +341,7 @@ execution_mode: single
 host_agent_capability: unknown
 available_child_slots: unknown
 selected_workers: 0
-checker_strategy: single_session
+active_checker_strategy: single_session
 
 ## Active Constraints
 
@@ -364,13 +384,30 @@ Template:
 
 ## Entries
 
-### YYYY-MM-DD HH:MM - TASK-001
+### TASK-001 / acceptance
 
-- command: exact command
-- result: passed or failed
-- evidence: summary of output
-- review: standard or adversarial; Tester and Reviewer conclusions for high/critical work
-- next_action: continue, repair, blocked
+- gate: acceptance
+- task_status: submitted_for_acceptance
+- submission_commit: hash or direct_apply
+- developer_identity: agent, session, or role
+- tester_identity: agent, session, or role
+- tester_result: passed | failed | blocked
+- reviewer_identity: agent, session, or role
+- reviewer_result: approved | repair | blocked
+- adversarial_cases_expected: CASE-001, CASE-002, or not_applicable
+- adversarial_cases_passed: CASE-001, CASE-002, or not_applicable
+- disagreement_status: none | unresolved | resolved
+- orchestrator_decision: accepted | repair | blocked
+- residual_risk: none or concrete risk
+
+### TASK-001 / integration
+
+- gate: integration
+- integration_strategy: merge | squash_merge | cherry_pick | integration_commit | direct_apply
+- integration_commit: hash or direct_apply
+- main_workspace_verification: passed | failed
+- verification_evidence: exact command or durable manual evidence
+- final_task_status: complete | needs_repair | blocked
 ```
 
 ## delivery-report.md
@@ -423,11 +460,15 @@ python <skill-root>/scripts/check-state.py --target <project-root> --phase struc
 python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
 python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase acceptance --task <TASK-ID>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase integration --task <TASK-ID>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
 ```
 
 - `structure` checks schema, required files, workflow markers, orchestration metadata, design sections, task contracts, and allowed status values.
 - `execution` additionally requires confirmed or ready baselines, no placeholder content, and an active workflow.
-- `task` additionally checks the selected task, dependencies, execution mode, handoff, workspace, and current-task state.
-- `parallel` additionally checks host capacity, group size, dependencies, unique worktrees, path overlap, Shared Contract Paths, and checker independence.
-- `delivery` additionally requires all tasks complete, recorded validation evidence, a complete delivery report, and terminal workflow state.
+- `task` additionally checks the selected task, dependencies, execution mode, task-owned checker strategy, handoff, workspace, repair budget, and current-task state.
+- `parallel` additionally checks host capacity, group size, dependencies, unique worktrees, path overlap, Shared Contract Paths, declared shared resources, conflict domains, integration dependencies, and checker independence.
+- `acceptance` checks the submitted task package, independent identities, declared review evidence, adversarial coverage, disagreement status, and critical controls.
+- `integration` checks accepted status, the declared integration strategy, integration evidence, and successful main-workspace verification.
+- `delivery` additionally requires all tasks complete, an acceptance and integration evidence closure for every task, a complete delivery report, and terminal workflow state.
