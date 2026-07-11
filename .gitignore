@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+
+# Local planning and project workspace files
+CLAUDE.md
+docs/
+tests/
+loop engineering.md
+spec2web_product_design.md
