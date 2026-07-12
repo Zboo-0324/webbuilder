@@ -16,6 +16,7 @@ from state_schema import (  # noqa: E402
     set_top_level_value,
     top_level_value,
 )
+from state_transition import apply_transaction, recover_pending_transaction  # noqa: E402
 
 
 class StateSchemaTests(unittest.TestCase):
@@ -40,3 +41,40 @@ class StateSchemaTests(unittest.TestCase):
             target.write_text("two\n", encoding="utf-8")
             second = direct_apply_fingerprint(root, ["src/app.py"])
             self.assertNotEqual(first, second)
+
+
+class StateTransitionTests(unittest.TestCase):
+    def test_interrupted_transaction_recovers_all_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "webbuilder"
+            state_dir.mkdir()
+            loop = "# Loop State\n\nstate_revision: 1\npending_transition: null\nstatus: active\n"
+            requirements = "# Requirements Baseline\n\nconfirmation_status: pending\n"
+            (state_dir / "loop-state.md").write_text(loop, encoding="utf-8")
+            (state_dir / "requirements-baseline.md").write_text(requirements, encoding="utf-8")
+            updates = {
+                "loop-state.md": loop.replace("status: active", "status: blocked"),
+                "requirements-baseline.md": requirements.replace("pending", "approved"),
+            }
+            with self.assertRaises(RuntimeError):
+                apply_transaction(
+                    state_dir,
+                    "test-interruption",
+                    updates,
+                    expected_revision=1,
+                    fail_after_replacements=1,
+                )
+            transition_id = recover_pending_transaction(state_dir)
+            self.assertIsNotNone(transition_id)
+            self.assertIn("status: blocked", (state_dir / "loop-state.md").read_text(encoding="utf-8"))
+            self.assertIn("confirmation_status: approved", (state_dir / "requirements-baseline.md").read_text(encoding="utf-8"))
+            self.assertEqual(recover_pending_transaction(state_dir), None)
+
+    def test_transaction_rejects_stale_expected_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "webbuilder"
+            state_dir.mkdir()
+            loop = "# Loop State\n\nstate_revision: 2\npending_transition: null\n"
+            (state_dir / "loop-state.md").write_text(loop, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "state revision changed"):
+                apply_transaction(state_dir, "stale", {"loop-state.md": loop}, expected_revision=1)

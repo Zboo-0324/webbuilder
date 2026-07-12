@@ -1,0 +1,170 @@
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from pathlib import Path
+
+from state_schema import set_top_level_value, sha256_bytes, top_level_value
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(text, encoding="utf-8", newline="\n")
+    os.replace(temporary, path)
+
+
+def build_journal(
+    state_dir: Path,
+    transition_id: str,
+    event: str,
+    expected_revision: int,
+    next_revision: int,
+    updates: dict[str, str],
+) -> dict[str, object]:
+    files = {}
+    for name, target_text in sorted(updates.items()):
+        current_text = (state_dir / name).read_text(encoding="utf-8")
+        files[name] = {
+            "original_sha256": sha256_bytes(current_text.encode("utf-8")),
+            "target_sha256": sha256_bytes(target_text.encode("utf-8")),
+            "target_text": target_text,
+        }
+    return {
+        "transition_id": transition_id,
+        "event": event,
+        "expected_revision": expected_revision,
+        "next_revision": next_revision,
+        "status": "pending",
+        "files": files,
+    }
+
+
+def write_journal(state_dir: Path, journal: dict[str, object]) -> None:
+    directory = state_dir / ".transitions"
+    directory.mkdir(exist_ok=True)
+    path = directory / f"{journal['transition_id']}.json"
+    atomic_write_text(path, json.dumps(journal, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+
+
+def mark_journal_complete(state_dir: Path, transition_id: str) -> None:
+    pending = state_dir / ".transitions" / f"{transition_id}.json"
+    complete = pending.with_name(f"{transition_id}.complete.json")
+    os.replace(pending, complete)
+
+
+def replace_targets(
+    state_dir: Path,
+    journal: dict[str, object],
+    *,
+    skip_names: set[str],
+    fail_after_replacements: int | None = None,
+) -> None:
+    files = journal["files"]
+    assert isinstance(files, dict)
+    replacements = 0
+    for name in sorted(files):
+        if name in skip_names:
+            continue
+        entry = files[name]
+        assert isinstance(entry, dict)
+        target_text = entry["target_text"]
+        assert isinstance(target_text, str)
+        atomic_write_text(state_dir / name, target_text)
+        replacements += 1
+        if fail_after_replacements is not None and replacements >= fail_after_replacements:
+            raise RuntimeError("injected failure after replacement")
+
+
+def apply_transaction(
+    state_dir: Path,
+    event: str,
+    updates: dict[str, str],
+    *,
+    expected_revision: int,
+    fail_after_replacements: int | None = None,
+) -> str:
+    recover_pending_transaction(state_dir)
+    loop_path = state_dir / "loop-state.md"
+    loop_text = loop_path.read_text(encoding="utf-8")
+    actual_revision = int(top_level_value(loop_text, "state_revision") or "0")
+    if actual_revision != expected_revision:
+        raise ValueError(f"state revision changed: expected {expected_revision}, found {actual_revision}")
+    transition_id = f"TX-{uuid.uuid4().hex}"
+    next_revision = expected_revision + 1
+    target_updates = dict(updates)
+    final_loop = target_updates.get("loop-state.md", loop_text)
+    final_loop = set_top_level_value(final_loop, "state_revision", str(next_revision))
+    final_loop = set_top_level_value(final_loop, "pending_transition", "null")
+    target_updates["loop-state.md"] = final_loop
+    intermediate_loop = set_top_level_value(loop_text, "pending_transition", transition_id)
+    journal = build_journal(state_dir, transition_id, event, expected_revision, next_revision, target_updates)
+    write_journal(state_dir, journal)
+    atomic_write_text(loop_path, intermediate_loop)
+    replace_targets(
+        state_dir,
+        journal,
+        skip_names={"loop-state.md"},
+        fail_after_replacements=fail_after_replacements,
+    )
+    atomic_write_text(loop_path, final_loop)
+    mark_journal_complete(state_dir, transition_id)
+    return transition_id
+
+
+def recover_pending_transaction(state_dir: Path) -> str | None:
+    directory = state_dir / ".transitions"
+    if not directory.exists():
+        return None
+    pending = sorted(
+        path for path in directory.glob("*.json") if not path.name.endswith(".complete.json")
+    )
+    if not pending:
+        return None
+    if len(pending) > 1:
+        raise ValueError("multiple pending transitions require manual inspection")
+
+    journal = json.loads(pending[0].read_text(encoding="utf-8"))
+    transition_id = journal["transition_id"]
+    files = journal["files"]
+    assert isinstance(transition_id, str)
+    assert isinstance(files, dict)
+
+    loop_entry = files.get("loop-state.md")
+    assert isinstance(loop_entry, dict)
+    for name in sorted(files):
+        if name == "loop-state.md":
+            continue
+        entry = files[name]
+        assert isinstance(entry, dict)
+        path = state_dir / name
+        current_hash = sha256_bytes(path.read_bytes())
+        original_hash = entry["original_sha256"]
+        target_hash = entry["target_sha256"]
+        target_text = entry["target_text"]
+        assert isinstance(original_hash, str)
+        assert isinstance(target_hash, str)
+        assert isinstance(target_text, str)
+        if current_hash == target_hash:
+            continue
+        if current_hash == original_hash:
+            atomic_write_text(path, target_text)
+            continue
+        raise ValueError(f"divergent transaction file: {name}")
+
+    loop_path = state_dir / "loop-state.md"
+    loop_text = loop_path.read_text(encoding="utf-8")
+    loop_hash = sha256_bytes(loop_text.encode("utf-8"))
+    original_hash = loop_entry["original_sha256"]
+    target_hash = loop_entry["target_sha256"]
+    target_text = loop_entry["target_text"]
+    assert isinstance(original_hash, str)
+    assert isinstance(target_hash, str)
+    assert isinstance(target_text, str)
+    if loop_hash not in {original_hash, target_hash} and top_level_value(
+        loop_text, "pending_transition"
+    ) != transition_id:
+        raise ValueError("divergent transaction file: loop-state.md")
+    atomic_write_text(loop_path, target_text)
+    mark_journal_complete(state_dir, transition_id)
+    return transition_id
