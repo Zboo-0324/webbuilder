@@ -36,7 +36,22 @@ Use explicit top-level statuses so file existence cannot be mistaken for phase r
 
 Do not change a status merely to satisfy the checker. Change it only after the file's phase exit gate is met.
 
-V1.3 requires `schema_version: 1.3` in `loop-state.md`. For V1, V1.0, V1.1, or V1.2 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up every changed state file, preserves project content, adds only mechanical metadata, and sets tasks without a documented risk basis to `unclassified` for explicit Planner classification.
+V1.4 requires `schema_version: 1.4` in `loop-state.md`. For V1, V1.0, V1.1, V1.2, or V1.3 state, run `migrate-state.py --dry-run` and then apply it. A missing version is treated as V1; any other explicit unsupported version stops for manual migration. The migration backs up every changed state file, preserves project content, adds only mechanical metadata, and sets tasks without a documented risk basis to `unclassified` for explicit Planner classification.
+
+## State Kernel Ownership and Recovery
+
+`loop-state.md` is the canonical State Kernel record. Schema 1.4 requires `delivery_mode`, `autonomy_scope`, `stop_reason`, `resume_checkpoint`, `active_run_id`, `state_revision`, and `pending_transition` alongside the existing orchestration fields.
+
+State-changing operations create a journal in `webbuilder/.transitions/` before modifying the participating files. The journal records the original and target hashes and target text; a completed transition is renamed with the `.complete.json` suffix. `transition-state.py --recover` completes a single pending journal only when files match their recorded original, intermediate, or target states, and rejects divergent files or multiple pending journals.
+
+Agents may edit descriptive project content and append evidence, but may not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. The State Kernel owns those control values; use its transition and checker APIs, or stop and ask when no supported transition exists.
+
+Before every resume, recover and structure-check the State Kernel:
+
+```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --recover
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+```
 
 ## project-rules.md
 
@@ -253,7 +268,7 @@ status: draft
 
 ## task-plan.md
 
-Purpose: list tasks, dependencies, allowed paths, validation, parallel groups, and integration policies.
+Purpose: list tasks, dependencies, allowed paths, validation, parallel groups, integration policies, and independent repair scopes.
 
 Use `pr_worktree` with a Git integration strategy for isolated task branches. Use `single_session` with `direct_apply` when accepted changes are already in the main workspace, including non-Git projects.
 
@@ -356,6 +371,13 @@ status: active
 current_phase: project_rules
 current_task: null
 active_parallel_group: null
+delivery_mode: guided
+autonomy_scope: unconfirmed
+stop_reason: none
+resume_checkpoint: none
+active_run_id: null
+state_revision: 1
+pending_transition: null
 execution_mode: single
 host_agent_capability: unknown
 available_child_slots: unknown
@@ -491,3 +513,5 @@ python <skill-root>/scripts/check-state.py --target <project-root> --phase deliv
 - `acceptance` checks the submitted task package, independent identities, declared review evidence, adversarial coverage, disagreement status, and critical controls.
 - `integration` checks accepted status, the declared integration strategy, integration evidence, and successful main-workspace verification.
 - `delivery` additionally requires all tasks complete, an acceptance and integration evidence closure for every task, a complete delivery report, and terminal workflow state.
+
+Task and integration repair are independent. `task_repair_attempt`, `task_failure_fingerprint`, and `task_same_fingerprint_count` cover task execution and acceptance within the task's repair budget. `integration_repair_attempt`, `integration_failure_fingerprint`, and `integration_same_fingerprint_count` cover post-acceptance integration, with its separate budget and stop condition. Do not copy a failure count or fingerprint from one scope into the other.

@@ -72,6 +72,7 @@ webbuilder/
     init-state.py
     check-state.py
     migrate-state.py
+    transition-state.py
 ```
 
 ## Install
@@ -192,6 +193,13 @@ Before application-code tasks, run the execution gate:
 python webbuilder/scripts/check-state.py --target . --phase execution
 ```
 
+Before every resume, recover any interrupted State Kernel transition and re-check structure:
+
+```powershell
+python webbuilder/scripts/transition-state.py --target . --recover
+python webbuilder/scripts/check-state.py --target . --phase structure
+```
+
 Before final delivery, run the delivery gate:
 
 ```powershell
@@ -208,7 +216,9 @@ The checker has seven validation phases:
 - `integration`: accepted task, matching integration strategy and commit, and main-workspace verification evidence
 - `delivery`: acceptance and integration evidence closure for every completed task, a complete delivery report, and terminal workflow state
 
-The initializer does not overwrite older state files. After migrating V1, V1.0, V1.1, or V1.2 state to schema 1.3, tasks without a documented risk basis become `unclassified` and must be explicitly classified before dispatch.
+The initializer does not overwrite older state files. Schema 1.4 adds guided delivery and recovery metadata (`delivery_mode`, `autonomy_scope`, `stop_reason`, `resume_checkpoint`, `active_run_id`, `state_revision`, and `pending_transition`). Migration preserves content and brings V1 through V1.3 state forward; tasks without a documented risk basis become `unclassified` and must be explicitly classified before dispatch.
+
+`loop-state.md` is the canonical State Kernel record. Agents may edit descriptive content and submit evidence, but must not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. State-changing operations use a transaction journal under `webbuilder/.transitions/`; recovery completes only a non-divergent pending transition.
 
 ## Workflow
 
@@ -264,6 +274,7 @@ Spec2Web uses PR/worktree handoff for delegated or parallel tasks in Git project
 - workers submit a local PR package or remote PR, then stop
 - the Orchestrator integrates serially through `merge`, `squash_merge`, `cherry_pick`, or `integration_commit`
 - verification runs in the main workspace after each integration
+- accepted evidence is copied to canonical state and `validation-log.md` before its worktree is cleaned up
 
 Spec2Web does not provide an automatic worker pool or unattended integration scheduler.
 

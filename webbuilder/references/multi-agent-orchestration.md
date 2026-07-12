@@ -10,6 +10,17 @@ Spec2Web uses host-provided agents adaptively. It remains a state-file workflow,
 - Checker and worker contracts
 - Serial integration queue
 
+## State Kernel on Resume
+
+Before every resume, recover the canonical state and run the structure gate:
+
+```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --recover
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+```
+
+The transition journal in `webbuilder/.transitions/` is the recovery record for an interrupted multi-file state update. Do not dispatch, accept, integrate, or manually edit around a pending or divergent journal.
+
 ## Execution Modes
 
 Choose one mode for the current task or batch and record it in `loop-state.md`:
@@ -105,6 +116,8 @@ Each task contract owns one checker strategy; `loop-state.md` records only the a
 
 The Developer never checks its own completion claim. Checker agents are read-only unless reassigned as Repairer with explicit failure evidence.
 
+Agents may edit descriptive task content and submit evidence, but the State Kernel alone advances approval, readiness, acceptance, integration, stop/resume, and delivery-success values. Use the transition and checker APIs; if the required transition is unavailable, stop for Orchestrator or user direction rather than editing a control value.
+
 ## Worker Contract
 
 Give each worker only:
@@ -133,3 +146,5 @@ For each submitted task:
 6. Update state before considering the next integration.
 
 Stop the remaining queue on conflict, scope drift, or failed main-workspace verification.
+
+Repair accounting stays scoped: task execution and acceptance use `task_repair_attempt`, `task_failure_fingerprint`, and `task_same_fingerprint_count`; post-acceptance integration uses `integration_repair_attempt`, `integration_failure_fingerprint`, and `integration_same_fingerprint_count`. Do not let either scope consume or reset the other's repair budget.
