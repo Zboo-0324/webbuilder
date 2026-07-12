@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+.worktrees/
 
 # Local planning and project workspace files
 CLAUDE.md
