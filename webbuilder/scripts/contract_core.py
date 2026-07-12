@@ -42,3 +42,7 @@ def canonical_contract_bytes(material: dict[str, object]) -> bytes:
 def contract_digest(material: dict[str, object]) -> str:
     selected = {field: material[field] for field in MATERIAL_FIELDS}
     return sha256_bytes(canonical_contract_bytes(selected))
+
+
+def material_contract_changed(before: dict[str, object], after: dict[str, object]) -> bool:
+    return canonical_contract_bytes(before) != canonical_contract_bytes(after)
