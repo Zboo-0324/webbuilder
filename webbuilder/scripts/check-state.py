@@ -502,11 +502,11 @@ def repair_scope_errors(task_id: str, body: str, scope: str, budget: int) -> lis
     errors: list[str] = []
     attempt = task_field_value(body, f"{scope}_repair_attempt")
     repeated = task_field_value(body, f"{scope}_same_fingerprint_count")
-    if attempt is None or not attempt.isdigit():
+    if attempt is None or not attempt.isascii() or not attempt.isdigit():
         errors.append(f"{task_id} {scope}_repair_attempt must be a non-negative integer")
     elif int(attempt) > budget:
         errors.append(f"{task_id} {scope}_repair_attempt exceeds budget {budget}")
-    if repeated is None or not repeated.isdigit():
+    if repeated is None or not repeated.isascii() or not repeated.isdigit():
         errors.append(
             f"{task_id} {scope}_same_fingerprint_count must be a non-negative integer"
         )
@@ -863,6 +863,10 @@ def check_acceptance_readiness(state_dir: Path, task_id: str | None) -> list[str
     reviewer = record_value(record, "reviewer_identity")
     checker_strategy = task_field_value(body, "checker_strategy")
 
+    if risk_level in {"high", "critical"} and checker_strategy != "separate_tester_reviewer":
+        errors.append(
+            f"{task_id} {risk_level}-risk work requires separate Tester and Reviewer"
+        )
     if checker_strategy == "independent_checker":
         if usable_evidence(developer) and developer in {tester, reviewer}:
             errors.append(f"{task_id} independent checker must differ from Developer")
