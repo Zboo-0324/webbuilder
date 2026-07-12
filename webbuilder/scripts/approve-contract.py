@@ -7,7 +7,12 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from contract_core import contract_digest, extract_contract_material
+from contract_core import (
+    contract_digest,
+    contract_revision_errors,
+    extract_contract_material,
+    validate_capabilities,
+)
 from state_schema import resolve_state_dir, set_top_level_value, top_level_value
 from state_transition import apply_transaction
 
@@ -21,6 +26,15 @@ def approve_contract(target: Path, evidence: str) -> int:
     loop_text = (state_dir / "loop-state.md").read_text(encoding="utf-8")
 
     material = extract_contract_material(requirements_text)
+
+    cap_errors = validate_capabilities(material.get("capabilities", {}))
+    if cap_errors:
+        raise ValueError("invalid capabilities: " + "; ".join(cap_errors))
+
+    revision_errors = contract_revision_errors(requirements_text, material)
+    if revision_errors:
+        raise ValueError("contract revision errors: " + "; ".join(revision_errors))
+
     digest = contract_digest(material)
     revision = int(top_level_value(requirements_text, "contract_revision") or "1")
 
@@ -71,6 +85,13 @@ def invalidate_contract(target: Path) -> int:
     design_text = (state_dir / "system-design.md").read_text(encoding="utf-8")
     plan_text = (state_dir / "task-plan.md").read_text(encoding="utf-8")
     loop_text = (state_dir / "loop-state.md").read_text(encoding="utf-8")
+
+    material = extract_contract_material(requirements_text)
+    current_digest = contract_digest(material)
+    approved_digest = top_level_value(requirements_text, "approval_digest")
+    if approved_digest and approved_digest != "null" and approved_digest == current_digest:
+        print("No material contract change detected. Invalidation skipped.")
+        return 0
 
     revision = int(top_level_value(requirements_text, "contract_revision") or "1")
     next_revision = revision + 1
