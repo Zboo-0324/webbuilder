@@ -16,8 +16,10 @@ sys.path.insert(0, str(SCRIPTS))
 from contract_core import (  # noqa: E402
     canonical_contract_bytes,
     contract_digest,
+    contract_revision_errors,
     extract_contract_material,
     material_contract_changed,
+    validate_capabilities,
 )
 from state_schema import top_level_value  # noqa: E402
 
@@ -94,6 +96,80 @@ class ContractCoreTests(unittest.TestCase):
         text = f"# Requirements\n\n```json contract-material\n{body}\n```\n"
         with self.assertRaises(ValueError):
             extract_contract_material(text)
+
+    # --- validate_capabilities ---
+
+    def test_validate_capabilities_accepts_valid_entries(self) -> None:
+        caps = {
+            "security": {"status": "required", "profile": "baseline"},
+            "performance": {"status": "recommended", "profile": "standard"},
+        }
+        errors = validate_capabilities(caps)
+        self.assertEqual(errors, [])
+
+    def test_validate_capabilities_rejects_missing_status(self) -> None:
+        caps = {"security": {"profile": "baseline"}}
+        errors = validate_capabilities(caps)
+        self.assertTrue(any("status" in e for e in errors))
+
+    def test_validate_capabilities_rejects_invalid_status(self) -> None:
+        caps = {"security": {"status": "maybe", "profile": "baseline"}}
+        errors = validate_capabilities(caps)
+        self.assertTrue(any("status" in e for e in errors))
+
+    def test_validate_capabilities_rejects_missing_profile(self) -> None:
+        caps = {"security": {"status": "required"}}
+        errors = validate_capabilities(caps)
+        self.assertTrue(any("profile" in e for e in errors))
+
+    def test_validate_capabilities_rejects_non_dict_entry(self) -> None:
+        caps = {"security": "baseline"}
+        errors = validate_capabilities(caps)
+        self.assertTrue(len(errors) > 0)
+
+    # --- contract_revision_errors ---
+
+    def test_revision_errors_empty_for_fresh_draft(self) -> None:
+        material = dict(self.MATERIAL)
+        text = (
+            "contract_revision: 1\n"
+            "approved_contract_revision: null\n"
+            "approval_digest: null\n"
+        )
+        errors = contract_revision_errors(text, material)
+        self.assertEqual(errors, [])
+
+    def test_revision_errors_empty_when_approved_matches(self) -> None:
+        material = dict(self.MATERIAL)
+        digest = contract_digest(material)
+        text = (
+            "contract_revision: 1\n"
+            f"approved_contract_revision: 1\n"
+            f"approval_digest: {digest}\n"
+        )
+        errors = contract_revision_errors(text, material)
+        self.assertEqual(errors, [])
+
+    def test_revision_errors_catches_stale_digest(self) -> None:
+        material = dict(self.MATERIAL)
+        text = (
+            "contract_revision: 1\n"
+            "approved_contract_revision: 1\n"
+            "approval_digest: sha256:0000000000000000000000000000000000000000000000000000000000000000\n"
+        )
+        errors = contract_revision_errors(text, material)
+        self.assertTrue(any("digest" in e.lower() for e in errors))
+
+    def test_revision_errors_catches_revision_mismatch(self) -> None:
+        material = dict(self.MATERIAL)
+        digest = contract_digest(material)
+        text = (
+            "contract_revision: 2\n"
+            "approved_contract_revision: 1\n"
+            f"approval_digest: {digest}\n"
+        )
+        errors = contract_revision_errors(text, material)
+        self.assertTrue(any("revision" in e.lower() for e in errors))
 
 
 class ContractApprovalTests(unittest.TestCase):
@@ -214,6 +290,18 @@ class ContractApprovalTests(unittest.TestCase):
             text, encoding="utf-8", newline="\n"
         )
 
+    def _replace_contract_material(self, contract_material: dict) -> None:
+        path = self.state_dir / "requirements-baseline.md"
+        text = path.read_text(encoding="utf-8")
+        contract_json = json.dumps(contract_material, ensure_ascii=False, indent=2)
+        import re
+        text = re.sub(
+            r"(?ms)^```json contract-material\n.*?\n```",
+            f"```json contract-material\n{contract_json}\n```",
+            text,
+        )
+        path.write_text(text, encoding="utf-8", newline="\n")
+
     def _read(self, filename: str) -> str:
         return (self.state_dir / filename).read_text(encoding="utf-8")
 
@@ -301,7 +389,6 @@ class ContractApprovalTests(unittest.TestCase):
         self.assertEqual(top_level_value(loop_state, "state_revision"), "3")
 
     def test_non_material_change_preserves_contract_revision(self) -> None:
-
         before = dict(self.FULL_CONTRACT)
         after = dict(self.FULL_CONTRACT)
         self.assertFalse(material_contract_changed(before, after))
@@ -314,3 +401,68 @@ class ContractApprovalTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         requirements = self._read("requirements-baseline.md")
         self.assertIn("contract_revision: 1", requirements)
+
+    def test_invalidate_with_unchanged_contract_is_noop(self) -> None:
+        result = self._run_approve()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        requirements_before = self._read("requirements-baseline.md")
+        loop_before = self._read("loop-state.md")
+
+        result = self._run_invalidate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        requirements_after = self._read("requirements-baseline.md")
+        loop_after = self._read("loop-state.md")
+
+        self.assertIn("confirmation_status: approved", requirements_after)
+        self.assertIn("contract_revision: 1", requirements_after)
+        self.assertIn("approved_contract_revision: 1", requirements_after)
+        self.assertEqual(
+            top_level_value(loop_before, "state_revision"),
+            top_level_value(loop_after, "state_revision"),
+        )
+
+    def test_invalidate_after_non_material_change_is_noop(self) -> None:
+        result = self._run_approve()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        changed_contract = dict(self.FULL_CONTRACT)
+        changed_contract["custom_notes"] = "added a non-material field"
+        self._replace_contract_material(changed_contract)
+
+        result = self._run_invalidate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        requirements = self._read("requirements-baseline.md")
+        loop_state = self._read("loop-state.md")
+
+        self.assertIn("confirmation_status: approved", requirements)
+        self.assertIn("contract_revision: 1", requirements)
+        self.assertIn("approved_contract_revision: 1", requirements)
+        self.assertEqual(top_level_value(loop_state, "state_revision"), "2")
+
+    def test_invalidate_material_change_after_real_change_increments(self) -> None:
+        result = self._run_approve()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        changed_contract = dict(self.FULL_CONTRACT)
+        changed_contract["problem"] = "Completely different problem"
+        self._fill_contract(changed_contract)
+
+        result = self._run_invalidate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        requirements = self._read("requirements-baseline.md")
+        self.assertIn("confirmation_status: pending", requirements)
+        self.assertIn("contract_revision: 2", requirements)
+        self.assertIn("approved_contract_revision: null", requirements)
+
+    def test_approve_rejects_invalid_capabilities(self) -> None:
+        bad_contract = dict(self.FULL_CONTRACT)
+        bad_contract["capabilities"] = {"security": {"status": "maybe"}}
+        self._fill_contract(bad_contract)
+
+        result = self._run_approve()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("capabilities", (result.stdout + result.stderr).lower())
