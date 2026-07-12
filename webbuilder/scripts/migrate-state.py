@@ -108,6 +108,71 @@ discovery_status: pending
 
 """
 
+CONTRACT_FIELDS = [
+    ("confirmation_status", "pending"),
+    ("contract_revision", "1"),
+    ("approved_contract_revision", "null"),
+    ("approval_digest", "null"),
+    ("approval_scope", "requirements_design_stack_ui_execution"),
+    ("approval_evidence", "null"),
+    ("approved_by", "null"),
+    ("approved_at", "null"),
+    ("discovery_method", "interactive"),
+]
+
+SOLUTION_CONTRACT_SECTION = """## Solution Contract
+
+```json contract-material
+{
+  "problem": "not recorded",
+  "desired_outcome": "not recorded",
+  "target_users": [],
+  "primary_jobs": [],
+  "core_capabilities": [],
+  "non_goals": [],
+  "primary_workflows": [],
+  "page_navigation_summary": "not recorded",
+  "ui_direction": "not recorded",
+  "technology_profile": "not recorded",
+  "public_interfaces": [],
+  "data_boundary": "not recorded",
+  "permission_boundary": "not recorded",
+  "delivery_assumptions": [],
+  "material_risks": [],
+  "acceptance_signals": [],
+  "capabilities": {},
+  "workload_envelope": {
+    "task_count": "not estimated",
+    "browser_flows": [],
+    "external_dependencies": [],
+    "quality_gates": [],
+    "repair_budgets": {"task": 3, "integration": 5},
+    "available_concurrency": "unknown"
+  }
+}
+```
+
+"""
+
+
+def add_top_level_fields(text: str, fields: list[tuple[str, str]]) -> str:
+    missing = [
+        (name, value)
+        for name, value in fields
+        if not re.search(rf"(?m)^{re.escape(name)}:\s*[^\n]*$", text)
+    ]
+    if not missing:
+        return text
+    metadata = "\n".join(f"{name}: {value}" for name, value in missing)
+    status = re.search(r"(?m)^status:\s*[^\n]*$", text)
+    if status:
+        return text[: status.end()] + "\n" + metadata + text[status.end() :]
+    return text.rstrip() + "\n\n" + metadata + "\n"
+
+
+def migrate_contract_reference(text: str) -> str:
+    return add_top_level_fields(text, [("based_on_contract_revision", "1")])
+
 
 def migrate_loop_state(text: str) -> str:
     text = text.replace(
@@ -167,6 +232,7 @@ def migrate_loop_state(text: str) -> str:
 
 
 def migrate_task_plan(text: str) -> str:
+    text = migrate_contract_reference(text)
     marker = "## Tasks"
     if marker not in text:
         raise ValueError("task-plan.md missing ## Tasks")
@@ -223,17 +289,37 @@ def migrate_task_plan(text: str) -> str:
 
 
 def migrate_requirements_baseline(text: str) -> str:
-    if re.search(r"(?m)^## User Discovery\s*$", text):
-        return text
-    if re.search(r"(?m)^## First-Principles Analysis\s*$", text):
-        return text.replace("## First-Principles Analysis", DISCOVERY_SECTION + "## First-Principles Analysis", 1)
-    marker = "## Assumptions"
-    if marker in text:
-        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
-    marker = "## Open Questions"
-    if marker in text:
-        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
-    return text.rstrip() + "\n\n" + DISCOVERY_SECTION + FIRST_PRINCIPLES_SECTION
+    text = add_top_level_fields(text, CONTRACT_FIELDS)
+    if not re.search(r"(?m)^## User Discovery\s*$", text):
+        if re.search(r"(?m)^## First-Principles Analysis\s*$", text):
+            text = text.replace(
+                "## First-Principles Analysis",
+                DISCOVERY_SECTION + "## First-Principles Analysis",
+                1,
+            )
+        else:
+            marker = "## Assumptions"
+            if marker in text:
+                text = text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+            else:
+                marker = "## Open Questions"
+                if marker in text:
+                    text = text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+                else:
+                    text = text.rstrip() + "\n\n" + FIRST_PRINCIPLES_SECTION
+            if not re.search(r"(?m)^## User Discovery\s*$", text):
+                text = text.replace(
+                    "## First-Principles Analysis",
+                    DISCOVERY_SECTION + "## First-Principles Analysis",
+                    1,
+                )
+    if not re.search(r"(?m)^## Solution Contract\s*$", text):
+        marker = "## First-Principles Analysis"
+        if marker in text:
+            text = text.replace(marker, SOLUTION_CONTRACT_SECTION + marker, 1)
+        else:
+            text = text.rstrip() + "\n\n" + SOLUTION_CONTRACT_SECTION
+    return text
 
 
 def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
@@ -241,7 +327,8 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
     loop_state = state_dir / "loop-state.md"
     task_plan = state_dir / "task-plan.md"
     requirements_baseline = state_dir / "requirements-baseline.md"
-    for path in (loop_state, task_plan, requirements_baseline):
+    system_design = state_dir / "system-design.md"
+    for path in (loop_state, task_plan, requirements_baseline, system_design):
         if not path.exists():
             raise ValueError(f"missing required file: {path}")
 
@@ -249,6 +336,7 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
         loop_state: loop_state.read_text(encoding="utf-8"),
         task_plan: task_plan.read_text(encoding="utf-8"),
         requirements_baseline: requirements_baseline.read_text(encoding="utf-8"),
+        system_design: system_design.read_text(encoding="utf-8"),
     }
     migrated = {
         loop_state: migrate_loop_state(original[loop_state]),
@@ -256,10 +344,11 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
         requirements_baseline: migrate_requirements_baseline(
             original[requirements_baseline]
         ),
+        system_design: migrate_contract_reference(original[system_design]),
     }
     changed = [
         path
-        for path in (loop_state, task_plan, requirements_baseline)
+        for path in (loop_state, task_plan, requirements_baseline, system_design)
         if migrated[path] != original[path]
     ]
     if dry_run or not changed:

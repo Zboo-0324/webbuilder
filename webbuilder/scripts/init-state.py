@@ -43,6 +43,15 @@ status: draft
 ## Status
 
 status: draft
+confirmation_status: pending
+contract_revision: 1
+approved_contract_revision: null
+approval_digest: null
+approval_scope: requirements_design_stack_ui_execution
+approval_evidence: null
+approved_by: null
+approved_at: null
+discovery_method: interactive
 
 ## User Discovery
 
@@ -59,6 +68,38 @@ discovery_status: pending
 ### User Decisions
 
 - not recorded
+
+## Solution Contract
+
+```json contract-material
+{
+  "problem": "not recorded",
+  "desired_outcome": "not recorded",
+  "target_users": [],
+  "primary_jobs": [],
+  "core_capabilities": [],
+  "non_goals": [],
+  "primary_workflows": [],
+  "page_navigation_summary": "not recorded",
+  "ui_direction": "not recorded",
+  "technology_profile": "not recorded",
+  "public_interfaces": [],
+  "data_boundary": "not recorded",
+  "permission_boundary": "not recorded",
+  "delivery_assumptions": [],
+  "material_risks": [],
+  "acceptance_signals": [],
+  "capabilities": {},
+  "workload_envelope": {
+    "task_count": "not estimated",
+    "browser_flows": [],
+    "external_dependencies": [],
+    "quality_gates": [],
+    "repair_budgets": {"task": 3, "integration": 5},
+    "available_concurrency": "unknown"
+  }
+}
+```
 
 ## First-Principles Analysis
 
@@ -87,6 +128,7 @@ discovery_status: pending
     "system-design.md": """# System Design
 
 status: draft
+based_on_contract_revision: 1
 
 ## Technology Strategy
 
@@ -207,6 +249,7 @@ status: draft
     "task-plan.md": """# Task Plan
 
 status: draft
+based_on_contract_revision: 1
 
 ## Current Strategy
 

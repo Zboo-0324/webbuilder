@@ -82,6 +82,7 @@ LOOP_STATE_MARKERS = [
 ]
 
 SYSTEM_DESIGN_MARKERS = [
+    "based_on_contract_revision:",
     "## Technology Strategy",
     "### Options Considered",
     "### Selected Stack",
@@ -93,12 +94,25 @@ SYSTEM_DESIGN_MARKERS = [
 ]
 
 REQUIREMENTS_BASELINE_MARKERS = [
+    "confirmation_status:",
+    "contract_revision:",
+    "approved_contract_revision:",
+    "approval_digest:",
+    "approval_scope:",
+    "approval_evidence:",
+    "approved_by:",
+    "approved_at:",
+    "discovery_method:",
     "## User Discovery",
+    "## Solution Contract",
+    "```json contract-material",
     "## First-Principles Analysis",
     "### Core Outcome",
     "### Hard Constraints and Invariants",
     "### Assumptions and Evidence",
 ]
+
+TASK_PLAN_MARKERS = ["based_on_contract_revision:"]
 
 VALID_LOOP_STATUSES = {"active", "paused", "disabled", "blocked", "delivered"}
 VALID_FILE_STATUSES = {
@@ -418,6 +432,9 @@ def check_structure(state_dir: Path) -> list[str]:
 
     task_plan = read_text(state_dir, "task-plan.md")
     if task_plan:
+        for marker in TASK_PLAN_MARKERS:
+            if marker not in task_plan:
+                errors.append(f"task-plan.md missing marker: {marker}")
         sections = TASK_SECTION_PATTERN.findall(task_plan)
         if not sections:
             errors.append("task-plan.md must contain at least one TASK section")

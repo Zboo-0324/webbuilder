@@ -235,9 +235,8 @@ class Spec2WebStateScriptTests(unittest.TestCase):
     def test_init_creates_schema_1_4_runtime_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(self.run_init(tmp).returncode, 0)
-            loop = (Path(tmp) / STATE_DIR_NAME / "loop-state.md").read_text(
-                encoding="utf-8"
-            )
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            loop = (state_dir / "loop-state.md").read_text(encoding="utf-8")
             for marker in (
                 "schema_version: 1.4",
                 "delivery_mode: guided",
@@ -249,6 +248,30 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 "pending_transition: null",
             ):
                 self.assertIn(marker, loop)
+
+            requirements = (state_dir / "requirements-baseline.md").read_text(
+                encoding="utf-8"
+            )
+            system_design = (state_dir / "system-design.md").read_text(
+                encoding="utf-8"
+            )
+            task_plan = (state_dir / "task-plan.md").read_text(encoding="utf-8")
+            for marker in (
+                "confirmation_status: pending",
+                "contract_revision: 1",
+                "approved_contract_revision: null",
+                "approval_digest: null",
+                "approval_scope: requirements_design_stack_ui_execution",
+                "approval_evidence: null",
+                "approved_by: null",
+                "approved_at: null",
+                "discovery_method: interactive",
+                "## Solution Contract",
+                "```json contract-material",
+            ):
+                self.assertIn(marker, requirements)
+            self.assertIn("based_on_contract_revision: 1", system_design)
+            self.assertIn("based_on_contract_revision: 1", task_plan)
 
     def test_init_creates_and_preserves_state_gitignore(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -291,6 +314,25 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("loop-state.md missing marker: delivery_mode:", result.stdout)
+
+    def test_structure_check_requires_solution_contract_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            requirements = Path(tmp) / STATE_DIR_NAME / "requirements-baseline.md"
+            requirements.write_text(
+                requirements.read_text(encoding="utf-8").replace(
+                    "confirmation_status: pending\n", ""
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_check(tmp)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "requirements-baseline.md missing marker: confirmation_status:",
+                result.stdout,
+            )
 
     def test_execution_check_rejects_initialized_draft_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1329,6 +1371,8 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             state_dir = Path(tmp) / STATE_DIR_NAME
             loop_state = state_dir / "loop-state.md"
             task_plan = state_dir / "task-plan.md"
+            requirements_baseline = state_dir / "requirements-baseline.md"
+            system_design = state_dir / "system-design.md"
 
             loop_text = loop_state.read_text(encoding="utf-8")
             loop_text = re.sub(
@@ -1353,7 +1397,29 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 "",
                 plan_text,
             )
+            plan_text = plan_text.replace("based_on_contract_revision: 1\n", "")
             task_plan.write_text(plan_text, encoding="utf-8")
+
+            requirements_text = requirements_baseline.read_text(encoding="utf-8")
+            requirements_text = re.sub(
+                r"(?m)^(confirmation_status|contract_revision|"
+                r"approved_contract_revision|approval_digest|approval_scope|"
+                r"approval_evidence|approved_by|approved_at|discovery_method):.*\n",
+                "",
+                requirements_text,
+            )
+            requirements_text = re.sub(
+                r"(?ms)^## Solution Contract\n.*?^```\n\n?",
+                "",
+                requirements_text,
+            )
+            requirements_baseline.write_text(requirements_text, encoding="utf-8")
+            system_design.write_text(
+                system_design.read_text(encoding="utf-8").replace(
+                    "based_on_contract_revision: 1\n", ""
+                ),
+                encoding="utf-8",
+            )
 
             before_loop = loop_state.read_text(encoding="utf-8")
             dry_run = subprocess.run(
@@ -1381,16 +1447,36 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             migrated_requirements = (state_dir / "requirements-baseline.md").read_text(
                 encoding="utf-8"
             )
+            migrated_design = (state_dir / "system-design.md").read_text(
+                encoding="utf-8"
+            )
             self.assertIn("schema_version: 1.4", migrated_loop)
             self.assertIn("execution_mode: single", migrated_loop)
             self.assertIn("custom-note: preserve-me", migrated_loop)
             self.assertIn("## Shared Contract Paths", migrated_plan)
             self.assertIn("## First-Principles Analysis", migrated_requirements)
+            self.assertIn("confirmation_status: pending", migrated_requirements)
+            self.assertIn("contract_revision: 1", migrated_requirements)
+            self.assertIn("approved_contract_revision: null", migrated_requirements)
+            self.assertIn("approval_digest: null", migrated_requirements)
+            self.assertIn("approval_evidence: null", migrated_requirements)
+            self.assertIn("approved_by: null", migrated_requirements)
+            self.assertIn("approved_at: null", migrated_requirements)
+            self.assertIn("discovery_method: interactive", migrated_requirements)
+            self.assertIn("## Solution Contract", migrated_requirements)
+            self.assertIn("```json contract-material", migrated_requirements)
+            self.assertIn("based_on_contract_revision: 1", migrated_design)
+            self.assertIn("based_on_contract_revision: 1", migrated_plan)
             self.assertIn("backup:", applied.stdout)
             backup_dir = next(state_dir.glob(".migration-backup-*"))
             self.assertEqual(
                 {path.name for path in backup_dir.iterdir()},
-                {"loop-state.md", "task-plan.md"},
+                {
+                    "loop-state.md",
+                    "requirements-baseline.md",
+                    "system-design.md",
+                    "task-plan.md",
+                },
             )
             self.assertEqual(self.run_check(tmp).returncode, 0)
 
