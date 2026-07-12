@@ -65,7 +65,7 @@ class ContractCoreTests(unittest.TestCase):
 
     def test_invalid_json_in_contract_block_raises_value_error(self) -> None:
         text = "# Requirements\n\n```json contract-material\n{not json}\n```\n"
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "contract-material block contains invalid JSON"):
             extract_contract_material(text)
 
     def test_non_object_json_raises_value_error(self) -> None:

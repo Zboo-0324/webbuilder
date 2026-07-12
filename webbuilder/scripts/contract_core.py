@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 
-from state_schema import read_state_files, sha256_bytes, top_level_value
+from state_schema import sha256_bytes
 
 CONTRACT_BLOCK = re.compile(
     r"(?ms)^```json contract-material[ \t]*\n(.*?)\n```[ \t]*$"
@@ -23,7 +22,10 @@ def extract_contract_material(requirements_text: str) -> dict[str, object]:
     matches = CONTRACT_BLOCK.findall(requirements_text)
     if len(matches) != 1:
         raise ValueError("requirements-baseline.md must contain exactly one contract-material block")
-    value = json.loads(matches[0])
+    try:
+        value = json.loads(matches[0])
+    except json.JSONDecodeError:
+        raise ValueError("contract-material block contains invalid JSON")
     if not isinstance(value, dict):
         raise ValueError("contract material must be a JSON object")
     missing = [field for field in MATERIAL_FIELDS if field not in value]
