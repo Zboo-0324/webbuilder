@@ -184,3 +184,33 @@ class StateTransitionTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "divergent transaction file: loop-state.md"):
                 recover_pending_transaction(state_dir)
+
+    def test_transaction_normalizes_loop_aliases_and_rejects_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "webbuilder"
+            state_dir.mkdir()
+            loop = "# Loop State\n\nstate_revision: 1\npending_transition: null\nstatus: active\n"
+            requirements = "# Requirements Baseline\n\nconfirmation_status: pending\n"
+            (state_dir / "loop-state.md").write_text(loop, encoding="utf-8")
+            (state_dir / "requirements-baseline.md").write_text(requirements, encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                apply_transaction(
+                    state_dir,
+                    "loop-alias",
+                    {
+                        "./loop-state.md": loop.replace("status: active", "status: blocked"),
+                        "requirements-baseline.md": requirements.replace("pending", "approved"),
+                    },
+                    expected_revision=1,
+                    fail_after_replacements=1,
+                )
+            self.assertIsNotNone(recover_pending_transaction(state_dir))
+            current_loop = (state_dir / "loop-state.md").read_text(encoding="utf-8")
+            self.assertEqual(top_level_value(current_loop, "status"), "blocked")
+            with self.assertRaisesRegex(ValueError, "duplicate transaction path"):
+                apply_transaction(
+                    state_dir,
+                    "duplicate-loop-alias",
+                    {"loop-state.md": current_loop, "./loop-state.md": current_loop},
+                    expected_revision=2,
+                )

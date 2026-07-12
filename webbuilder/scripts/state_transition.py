@@ -67,6 +67,17 @@ def transaction_path(state_dir: Path, name: str) -> Path:
     return path
 
 
+def normalize_updates(state_dir: Path, updates: dict[str, str]) -> dict[str, str]:
+    root = state_dir.resolve()
+    normalized: dict[str, str] = {}
+    for name, text in updates.items():
+        canonical_name = transaction_path(state_dir, name).relative_to(root).as_posix()
+        if canonical_name in normalized:
+            raise ValueError(f"duplicate transaction path: {name}")
+        normalized[canonical_name] = text
+    return normalized
+
+
 def build_journal(
     state_dir: Path,
     transition_id: str,
@@ -144,8 +155,7 @@ def apply_transaction(
     expected_revision: int,
     fail_after_replacements: int | None = None,
 ) -> str:
-    for name in updates:
-        transaction_path(state_dir, name)
+    target_updates = normalize_updates(state_dir, updates)
     with state_lock(state_dir):
         _recover_pending_transaction(state_dir)
         loop_path = transaction_path(state_dir, "loop-state.md")
@@ -155,7 +165,6 @@ def apply_transaction(
             raise ValueError(f"state revision changed: expected {expected_revision}, found {actual_revision}")
         transition_id = f"TX-{uuid.uuid4().hex}"
         next_revision = expected_revision + 1
-        target_updates = dict(updates)
         final_loop = target_updates.get("loop-state.md", loop_text)
         final_loop = set_top_level_value(final_loop, "state_revision", str(next_revision))
         final_loop = set_top_level_value(final_loop, "pending_transition", "null")
