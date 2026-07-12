@@ -274,9 +274,12 @@ Every task must have:
 - `shared_resources`
 - `conflict_domains`
 - `integration_dependencies`
-- `repair_attempt`
-- `last_failure_fingerprint`
-- `same_fingerprint_count`
+- `task_repair_attempt`
+- `task_failure_fingerprint`
+- `task_same_fingerprint_count`
+- `integration_repair_attempt`
+- `integration_failure_fingerprint`
+- `integration_same_fingerprint_count`
 - `integration_policy`
 
 For task rules and templates, read `references/task-breakdown.md`.

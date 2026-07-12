@@ -330,9 +330,12 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
   - none
 - integration_dependencies:
   - none
-- repair_attempt: 0
-- last_failure_fingerprint: none
-- same_fingerprint_count: 0
+- task_repair_attempt: 0
+- task_failure_fingerprint: none
+- task_same_fingerprint_count: 0
+- integration_repair_attempt: 0
+- integration_failure_fingerprint: none
+- integration_same_fingerprint_count: 0
 - integration_policy: orchestrator_review_then_serial_integration
 ```
 

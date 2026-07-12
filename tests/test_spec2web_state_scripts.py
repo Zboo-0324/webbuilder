@@ -13,6 +13,9 @@ INIT_SCRIPT = ROOT / "webbuilder" / "scripts" / "init-state.py"
 CHECK_SCRIPT = ROOT / "webbuilder" / "scripts" / "check-state.py"
 MIGRATE_SCRIPT = ROOT / "webbuilder" / "scripts" / "migrate-state.py"
 SKILL_FILE = ROOT / "webbuilder" / "SKILL.md"
+LOOP_ENGINEERING_REFERENCE = ROOT / "webbuilder" / "references" / "loop-engineering.md"
+TASK_BREAKDOWN_REFERENCE = ROOT / "webbuilder" / "references" / "task-breakdown.md"
+STATE_FILES_REFERENCE = ROOT / "webbuilder" / "references" / "state-files.md"
 STATE_DIR_NAME = "webbuilder"
 
 
@@ -1003,6 +1006,112 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("unsupported schema_version: 2.0", result.stdout)
+
+    def test_migrate_state_maps_non_default_legacy_repair_fields_for_v1_sources(
+        self,
+    ) -> None:
+        for version in ("1.0", "1.1", "1.2"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(self.run_init(tmp).returncode, 0)
+                state_dir = Path(tmp) / STATE_DIR_NAME
+                loop_state = state_dir / "loop-state.md"
+                task_plan = state_dir / "task-plan.md"
+                source_loop = loop_state.read_text(encoding="utf-8").replace(
+                    "schema_version: 1.4", f"schema_version: {version}"
+                )
+                source_loop = re.sub(
+                    r"(?m)^(delivery_mode|autonomy_scope|stop_reason|resume_checkpoint|"
+                    r"active_run_id|state_revision|pending_transition):.*\n",
+                    "",
+                    source_loop,
+                )
+                if version == "1.0":
+                    source_loop = re.sub(
+                        r"(?m)^(execution_mode|host_agent_capability|"
+                        r"available_child_slots|selected_workers|"
+                        r"active_checker_strategy):.*\n",
+                        "",
+                        source_loop,
+                    )
+                elif version == "1.1":
+                    source_loop = source_loop.replace(
+                        "active_checker_strategy: single_session\n",
+                        "checker_strategy: independent_checker\n",
+                    )
+                loop_state.write_text(
+                    source_loop + f"custom-source-version: {version}\n",
+                    encoding="utf-8",
+                )
+
+                legacy_task_plan = re.sub(
+                    r"(?m)^- (task_repair_attempt|task_failure_fingerprint|"
+                    r"task_same_fingerprint_count|integration_repair_attempt|"
+                    r"integration_failure_fingerprint|"
+                    r"integration_same_fingerprint_count):.*\n",
+                    "",
+                    task_plan.read_text(encoding="utf-8"),
+                )
+                task_plan.write_text(
+                    legacy_task_plan
+                    + "- repair_attempt: 2\n"
+                    + "- last_failure_fingerprint: sha256:legacy-non-default\n"
+                    + "- same_fingerprint_count: 2\n",
+                    encoding="utf-8",
+                )
+
+                result = subprocess.run(
+                    [sys.executable, str(MIGRATE_SCRIPT), "--target", tmp],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                migrated_loop = loop_state.read_text(encoding="utf-8")
+                migrated_task_plan = task_plan.read_text(encoding="utf-8")
+                self.assertIn("schema_version: 1.4", migrated_loop)
+                self.assertIn(f"custom-source-version: {version}", migrated_loop)
+                for marker in (
+                    "task_repair_attempt: 2",
+                    "task_failure_fingerprint: sha256:legacy-non-default",
+                    "task_same_fingerprint_count: 2",
+                    "integration_repair_attempt: 2",
+                    "integration_failure_fingerprint: sha256:legacy-non-default",
+                    "integration_same_fingerprint_count: 2",
+                ):
+                    self.assertIn(marker, migrated_task_plan)
+                for legacy_field in (
+                    "repair_attempt",
+                    "last_failure_fingerprint",
+                    "same_fingerprint_count",
+                ):
+                    self.assertNotIn(f"- {legacy_field}:", migrated_task_plan)
+
+    def test_task_contract_guidance_uses_schema_1_4_repair_fields(self) -> None:
+        for path in (
+            SKILL_FILE,
+            LOOP_ENGINEERING_REFERENCE,
+            TASK_BREAKDOWN_REFERENCE,
+            STATE_FILES_REFERENCE,
+        ):
+            with self.subTest(path=path):
+                text = path.read_text(encoding="utf-8")
+                for field in (
+                    "task_repair_attempt",
+                    "task_failure_fingerprint",
+                    "task_same_fingerprint_count",
+                    "integration_repair_attempt",
+                    "integration_failure_fingerprint",
+                    "integration_same_fingerprint_count",
+                ):
+                    self.assertIn(field, text)
+                for field in (
+                    "repair_attempt",
+                    "last_failure_fingerprint",
+                    "same_fingerprint_count",
+                ):
+                    self.assertNotIn(f"`{field}`", text)
+                    self.assertNotIn(f"- {field}:", text)
 
     def test_skill_routes_to_strategy_and_interface_references(self) -> None:
         text = SKILL_FILE.read_text(encoding="utf-8")
