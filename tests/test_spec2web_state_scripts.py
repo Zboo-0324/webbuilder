@@ -565,6 +565,44 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 "separate_tester_reviewer requires distinct identities", result.stdout
             )
 
+    def test_acceptance_rejects_placeholder_developer_for_high_risk_separation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.make_execution_ready(tmp)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            task_plan = state_dir / "task-plan.md"
+            text = task_plan.read_text(encoding="utf-8")
+            text = text.replace("status: pending", "status: submitted_for_acceptance")
+            text = text.replace("risk_level: low", "risk_level: high")
+            text = text.replace(
+                "checker_strategy: single_session",
+                "checker_strategy: separate_tester_reviewer",
+            )
+            text = text.replace("review_mode: standard", "review_mode: adversarial")
+            text = text.replace("  - not_applicable", "  - CASE-001", 1)
+            task_plan.write_text(text, encoding="utf-8")
+            (state_dir / "validation-log.md").write_text(
+                "# Validation Log\n\n## Entries\n\n### TASK-001 / acceptance\n\n"
+                "- gate: acceptance\n- task_status: submitted_for_acceptance\n"
+                "- submission_commit: abc123\n- developer_identity: none\n"
+                "- tester_identity: checker\n- tester_result: passed\n"
+                "- reviewer_identity: checker\n- reviewer_result: approved\n"
+                "- adversarial_cases_expected: CASE-001\n"
+                "- adversarial_cases_passed: CASE-001\n"
+                "- disagreement_status: none\n- orchestrator_decision: accepted\n"
+                "- residual_risk: none\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_check(tmp, "acceptance", task="TASK-001")
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "acceptance developer_identity must be usable evidence", result.stdout
+            )
+
     def test_acceptance_rejects_independent_checker_for_high_risk_work(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(self.run_init(tmp).returncode, 0)

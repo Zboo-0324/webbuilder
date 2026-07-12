@@ -863,6 +863,14 @@ def check_acceptance_readiness(state_dir: Path, task_id: str | None) -> list[str
     reviewer = record_value(record, "reviewer_identity")
     checker_strategy = task_field_value(body, "checker_strategy")
 
+    for field, identity in (
+        ("developer_identity", developer),
+        ("tester_identity", tester),
+        ("reviewer_identity", reviewer),
+    ):
+        if not usable_evidence(identity):
+            errors.append(f"{task_id} acceptance {field} must be usable evidence")
+
     if risk_level in {"high", "critical"} and checker_strategy != "separate_tester_reviewer":
         errors.append(
             f"{task_id} {risk_level}-risk work requires separate Tester and Reviewer"
