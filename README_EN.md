@@ -286,7 +286,7 @@ python webbuilder/scripts/check-state.py --target $tmp --phase structure
 Validate the Skill package:
 
 ```powershell
-python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
+python -X utf8 "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
 ```
 
 ## Design Principles
