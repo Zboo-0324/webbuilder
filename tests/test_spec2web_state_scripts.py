@@ -9,14 +9,19 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "webbuilder" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
 INIT_SCRIPT = ROOT / "webbuilder" / "scripts" / "init-state.py"
 CHECK_SCRIPT = ROOT / "webbuilder" / "scripts" / "check-state.py"
 MIGRATE_SCRIPT = ROOT / "webbuilder" / "scripts" / "migrate-state.py"
+TRANSITION_SCRIPT = ROOT / "webbuilder" / "scripts" / "transition-state.py"
 SKILL_FILE = ROOT / "webbuilder" / "SKILL.md"
 LOOP_ENGINEERING_REFERENCE = ROOT / "webbuilder" / "references" / "loop-engineering.md"
 TASK_BREAKDOWN_REFERENCE = ROOT / "webbuilder" / "references" / "task-breakdown.md"
 STATE_FILES_REFERENCE = ROOT / "webbuilder" / "references" / "state-files.md"
 STATE_DIR_NAME = "webbuilder"
+
+from state_transition import apply_transaction  # noqa: E402
 
 
 class Spec2WebStateScriptTests(unittest.TestCase):
@@ -49,6 +54,14 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             command.extend(["--parallel-group", parallel_group])
         return subprocess.run(
             command,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def run_transition(self, target: str, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(TRANSITION_SCRIPT), "--target", target, *arguments],
             text=True,
             capture_output=True,
             check=False,
@@ -859,6 +872,237 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("delivery phase check passed", result.stdout)
+
+    def test_transition_rejects_unknown_events_without_writing_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            loop_state = Path(tmp) / STATE_DIR_NAME / "loop-state.md"
+            before = loop_state.read_text(encoding="utf-8")
+
+            result = self.run_transition(
+                tmp,
+                "--event",
+                "anything",
+                "--set",
+                "loop-state.md:status=delivered",
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unsupported transition event: anything", result.stdout)
+            self.assertEqual(loop_state.read_text(encoding="utf-8"), before)
+
+    def test_transition_rejects_arbitrary_control_updates(self) -> None:
+        for update in (
+            "loop-state.md:status=delivered",
+            "loop-state.md:state_revision=2",
+            "task-plan.md:user_approval=approved",
+        ):
+            with self.subTest(update=update), tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(self.run_init(tmp).returncode, 0)
+                state_dir = Path(tmp) / STATE_DIR_NAME
+                before = {
+                    path.name: path.read_text(encoding="utf-8")
+                    for path in state_dir.iterdir()
+                    if path.is_file()
+                }
+
+                result = self.run_transition(
+                    tmp,
+                    "--event",
+                    "edit-descriptive-content",
+                    "--set",
+                    update,
+                )
+
+                name, key_value = update.split(":", maxsplit=1)
+                key = key_value.split("=", maxsplit=1)[0]
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"may not set control value: {name}:{key}", result.stdout)
+                self.assertEqual(
+                    (state_dir / name).read_text(encoding="utf-8"), before[name]
+                )
+
+    def test_transition_allows_descriptive_content_updates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            design = Path(tmp) / STATE_DIR_NAME / "system-design.md"
+
+            result = self.run_transition(
+                tmp,
+                "--event",
+                "edit-descriptive-content",
+                "--set",
+                "system-design.md:custom_note=recorded",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("custom_note: recorded", design.read_text(encoding="utf-8"))
+
+    def test_accept_task_transition_requires_submitted_source_and_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.make_execution_ready(tmp)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            task_plan = state_dir / "task-plan.md"
+            before = task_plan.read_text(encoding="utf-8")
+
+            result = self.run_transition(tmp, "--event", "accept-task", "--task", "TASK-001")
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("TASK-001 status must be submitted_for_acceptance", result.stdout)
+            self.assertEqual(task_plan.read_text(encoding="utf-8"), before)
+
+    def test_accept_task_transition_rejects_missing_acceptance_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.make_execution_ready(tmp)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            task_plan = state_dir / "task-plan.md"
+            task_plan.write_text(
+                task_plan.read_text(encoding="utf-8").replace(
+                    "status: pending", "status: submitted_for_acceptance"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_transition(tmp, "--event", "accept-task", "--task", "TASK-001")
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("validation-log.md missing TASK-001 / acceptance record", result.stdout)
+            self.assertIn("status: submitted_for_acceptance", task_plan.read_text(encoding="utf-8"))
+
+    def test_accept_task_transition_constructs_accepted_status_after_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.make_execution_ready(tmp)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            task_plan = state_dir / "task-plan.md"
+            task_plan.write_text(
+                task_plan.read_text(encoding="utf-8").replace(
+                    "status: pending", "status: submitted_for_acceptance"
+                ),
+                encoding="utf-8",
+            )
+            (state_dir / "validation-log.md").write_text(
+                "# Validation Log\n\n## Entries\n\n### TASK-001 / acceptance\n\n"
+                "- gate: acceptance\n- task_status: submitted_for_acceptance\n"
+                "- submission_commit: direct_apply\n- developer_identity: developer\n"
+                "- tester_identity: checker\n- tester_result: passed\n"
+                "- reviewer_identity: checker\n- reviewer_result: approved\n"
+                "- adversarial_cases_expected: not_applicable\n"
+                "- adversarial_cases_passed: not_applicable\n"
+                "- disagreement_status: none\n- orchestrator_decision: accepted\n"
+                "- residual_risk: none\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_transition(tmp, "--event", "accept-task", "--task", "TASK-001")
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("status: accepted", task_plan.read_text(encoding="utf-8"))
+
+    def test_all_phase_gates_reject_an_interrupted_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+            validation_log = state_dir / "validation-log.md"
+            with self.assertRaises(RuntimeError):
+                apply_transaction(
+                    state_dir,
+                    "test-interruption",
+                    {"validation-log.md": validation_log.read_text(encoding="utf-8") + "\n"},
+                    expected_revision=1,
+                    fail_after_replacements=1,
+                )
+            self.assertEqual(len(list((state_dir / ".transitions").glob("*.json"))), 1)
+
+            for phase, task, group in (
+                ("execution", None, None),
+                ("task", "TASK-001", None),
+                ("parallel", None, "PG-001"),
+                ("acceptance", "TASK-001", None),
+                ("integration", "TASK-001", None),
+                ("delivery", None, None),
+            ):
+                with self.subTest(phase=phase):
+                    result = self.run_check(tmp, phase, task=task, parallel_group=group)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("pending_transition", result.stdout)
+
+    def test_structure_validates_runtime_domains_and_journal_agreement(self) -> None:
+        cases = (
+            ("delivery_mode", "autonomous", "delivery_mode must be one of: guided"),
+            ("autonomy_scope", "confirmed", "autonomy_scope must be one of: unconfirmed"),
+            ("stop_reason", "unsupported", "stop_reason must be one of:"),
+            ("resume_checkpoint", "unknown", "resume_checkpoint must be none"),
+            ("active_run_id", "RUN-001", "active_run_id must be null"),
+            ("state_revision", "one", "state_revision must be a non-negative integer"),
+            (
+                "pending_transition",
+                "TX-missing",
+                "pending_transition does not match a pending transition journal",
+            ),
+        )
+        for field, value, expected in cases:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(self.run_init(tmp).returncode, 0)
+                self.set_loop_values(tmp, **{field: value})
+
+                result = self.run_check(tmp)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stdout)
+
+    def test_delivery_rejects_unresolved_stop_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.make_execution_ready(tmp)
+            state_dir = Path(tmp) / STATE_DIR_NAME
+
+            task_plan = state_dir / "task-plan.md"
+            task_plan.write_text(
+                task_plan.read_text(encoding="utf-8").replace(
+                    "- status: pending", "- status: complete"
+                ),
+                encoding="utf-8",
+            )
+            loop_state = state_dir / "loop-state.md"
+            loop_state.write_text(
+                loop_state.read_text(encoding="utf-8")
+                .replace("status: active", "status: delivered")
+                .replace("current_phase: project_rules", "current_phase: delivery")
+                .replace("stop_reason: none", "stop_reason: environment_blocked"),
+                encoding="utf-8",
+            )
+            (state_dir / "validation-log.md").write_text(
+                "# Validation Log\n\n## Entries\n\n### TASK-001 / acceptance\n\n"
+                "- gate: acceptance\n- task_status: submitted_for_acceptance\n"
+                "- submission_commit: direct_apply\n- developer_identity: developer\n"
+                "- tester_identity: tester\n- tester_result: passed\n"
+                "- reviewer_identity: reviewer\n- reviewer_result: approved\n"
+                "- adversarial_cases_expected: not_applicable\n"
+                "- adversarial_cases_passed: not_applicable\n"
+                "- disagreement_status: none\n- orchestrator_decision: accepted\n"
+                "- residual_risk: none\n\n### TASK-001 / integration\n\n"
+                "- gate: integration\n- integration_strategy: squash_merge\n"
+                "- integration_commit: abc1234\n"
+                "- main_workspace_verification: passed\n"
+                "- verification_evidence: python -m unittest\n"
+                "- final_task_status: complete\n",
+                encoding="utf-8",
+            )
+            (state_dir / "delivery-report.md").write_text(
+                "# Delivery Report\n\nstatus: complete\n\n## Completed\n\n"
+                "- REQ-001 health endpoint.\n\n## Validation\n\n- Tests passed.\n\n"
+                "## Run Instructions\n\n- python app.py\n\n## Known Risks\n\n- None.\n\n"
+                "## Not Completed\n\n- None.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_check(tmp, "delivery")
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("stop_reason must be none for delivery", result.stdout)
 
     def test_check_state_requires_strategy_and_interface_markers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

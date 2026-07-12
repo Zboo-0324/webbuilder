@@ -231,6 +231,8 @@ Require `schema_version: 1.4` in `loop-state.md`, including `delivery_mode`, `au
 
 Agents may edit descriptive content and submit evidence, but may not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. Use the State Kernel transition and checker APIs for those changes. If no supported transition applies, stop and ask rather than editing a control value directly.
 
+Use only the supported `transition-state.py --event` lifecycle operations; they construct control updates internally and validate their applicable gates before writing. `--set` is reserved for `edit-descriptive-content` and rejects lifecycle control keys. The exact event table is in `references/state-files.md`.
+
 For templates and update rules, read `references/state-files.md`.
 
 ## Technology Strategy

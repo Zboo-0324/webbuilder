@@ -46,6 +46,10 @@ State-changing operations create a journal in `webbuilder/.transitions/` before 
 
 Agents may edit descriptive project content and append evidence, but may not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. The State Kernel owns those control values; use its transition and checker APIs, or stop and ask when no supported transition exists.
 
+Use `transition-state.py --event <event>` for lifecycle changes. Lifecycle events construct their control updates internally and reject `--set`: `confirm-user-discovery`, `confirm-requirements`, `mark-project-rules-ready`, `mark-system-design-ready`, `mark-task-plan-ready`, `start-task --task <TASK-ID>`, `submit-task --task <TASK-ID>`, `accept-task --task <TASK-ID>`, `complete-task-integration --task <TASK-ID>`, `complete-delivery-report`, `pause`, `block --reason <declared-reason>`, `resume`, and `deliver`.
+
+`edit-descriptive-content --set <file:key=value>` is the sole generic update form. It rejects every lifecycle control key, including statuses, readiness, task selection, stop/resume, revision, pending-transition, and orchestration fields. Each lifecycle event validates its source and target status plus its applicable gate before the journaled write.
+
 Before every resume, recover and structure-check the State Kernel:
 
 ```text

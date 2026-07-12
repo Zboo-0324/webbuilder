@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from itertools import combinations
 from pathlib import Path
@@ -136,6 +137,16 @@ VALID_CHECKER_STRATEGIES = {
 }
 VALID_ACTIVE_CHECKER_STRATEGIES = VALID_CHECKER_STRATEGIES | {"mixed"}
 VALID_USER_APPROVALS = {"not_required", "required", "approved"}
+VALID_DELIVERY_MODES = {"guided"}
+VALID_AUTONOMY_SCOPES = {"unconfirmed"}
+VALID_STOP_REASONS = {
+    "none",
+    "verification_failed",
+    "needs_user_action",
+    "needs_decision",
+    "repair_exhausted",
+    "environment_blocked",
+}
 
 EXECUTION_STATUSES = {
     "project-rules.md": "ready",
@@ -264,6 +275,61 @@ def integer_value(text: str, key: str) -> int | None:
         return None
 
 
+def runtime_field_errors(state_dir: Path, loop_state: str) -> list[str]:
+    errors: list[str] = []
+    values = {
+        "delivery_mode": top_level_value(loop_state, "delivery_mode"),
+        "autonomy_scope": top_level_value(loop_state, "autonomy_scope"),
+        "stop_reason": top_level_value(loop_state, "stop_reason"),
+    }
+    for field, valid_values in (
+        ("delivery_mode", VALID_DELIVERY_MODES),
+        ("autonomy_scope", VALID_AUTONOMY_SCOPES),
+        ("stop_reason", VALID_STOP_REASONS),
+    ):
+        if values[field] not in valid_values:
+            allowed = ", ".join(sorted(valid_values))
+            errors.append(f"loop-state.md {field} must be one of: {allowed}")
+
+    if top_level_value(loop_state, "resume_checkpoint") != "none":
+        errors.append("loop-state.md resume_checkpoint must be none in guided mode")
+    if top_level_value(loop_state, "active_run_id") != "null":
+        errors.append("loop-state.md active_run_id must be null in guided mode")
+
+    revision = top_level_value(loop_state, "state_revision")
+    if revision is None or not revision.isascii() or not revision.isdigit():
+        errors.append("loop-state.md state_revision must be a non-negative integer")
+
+    pending_transition = top_level_value(loop_state, "pending_transition")
+    transition_dir = state_dir / ".transitions"
+    journals = []
+    if transition_dir.exists():
+        journals = sorted(
+            path for path in transition_dir.glob("*.json") if not path.name.endswith(".complete.json")
+        )
+    if pending_transition == "null":
+        if journals:
+            errors.append("loop-state.md pending_transition is null with a pending transition journal")
+        return errors
+    if not pending_transition:
+        errors.append("loop-state.md pending_transition must be null or a pending transition ID")
+        return errors
+    if len(journals) != 1 or journals[0].stem != pending_transition:
+        errors.append(
+            "loop-state.md pending_transition does not match a pending transition journal"
+        )
+        return errors
+    try:
+        journal = json.loads(journals[0].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        errors.append("loop-state.md pending_transition journal is unreadable")
+        return errors
+    if journal.get("transition_id") != pending_transition or journal.get("status") != "pending":
+        errors.append("loop-state.md pending_transition does not match its pending journal")
+    errors.append("loop-state.md pending_transition must be null before phase checks")
+    return errors
+
+
 def check_structure(state_dir: Path) -> list[str]:
     errors: list[str] = []
 
@@ -331,6 +397,7 @@ def check_structure(state_dir: Path) -> list[str]:
             errors.append(
                 f"loop-state.md active_checker_strategy must be one of: {allowed}"
             )
+        errors.extend(runtime_field_errors(state_dir, loop_state))
 
     system_design = read_text(state_dir, "system-design.md")
     if system_design:
@@ -951,6 +1018,10 @@ def check_delivery_readiness(state_dir: Path) -> list[str]:
     errors = check_execution_readiness(state_dir, loop_status="delivered")
 
     loop_state = read_text(state_dir, "loop-state.md")
+    if top_level_value(loop_state, "pending_transition") != "null":
+        errors.append("loop-state.md pending_transition must be null for delivery")
+    if top_level_value(loop_state, "stop_reason") != "none":
+        errors.append("loop-state.md stop_reason must be none for delivery")
     current_phase = top_level_value(loop_state, "current_phase")
     if current_phase != "delivery":
         errors.append(
