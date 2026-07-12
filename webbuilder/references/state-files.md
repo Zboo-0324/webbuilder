@@ -366,7 +366,7 @@ Template:
 # Loop State
 
 workflow: spec2web
-schema_version: 1.3
+schema_version: 1.4
 status: active
 current_phase: project_rules
 current_task: null

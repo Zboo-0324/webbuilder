@@ -1293,6 +1293,14 @@ class Spec2WebStateScriptTests(unittest.TestCase):
         self.assertIn("2-3 concrete choices", text)
         self.assertIn("Do not ask the user to write the core requirements", text)
 
+    def test_state_file_templates_route_to_schema_1_4(self) -> None:
+        text = STATE_FILES_REFERENCE.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            re.findall(r"(?m)^schema_version:\s*([^\s#]+)\s*$", text),
+            ["1.4"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
