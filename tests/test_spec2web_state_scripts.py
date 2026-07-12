@@ -208,7 +208,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             loop_state = (state_dir / "loop-state.md").read_text(encoding="utf-8")
             task_plan = (state_dir / "task-plan.md").read_text(encoding="utf-8")
 
-            self.assertIn("schema_version: 1.3", loop_state)
+            self.assertIn("schema_version: 1.4", loop_state)
             self.assertIn("execution_mode: single", loop_state)
             self.assertIn("host_agent_capability: unknown", loop_state)
             self.assertIn("available_child_slots: unknown", loop_state)
@@ -783,7 +783,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             migrated_requirements = (state_dir / "requirements-baseline.md").read_text(
                 encoding="utf-8"
             )
-            self.assertIn("schema_version: 1.3", migrated_loop)
+            self.assertIn("schema_version: 1.4", migrated_loop)
             self.assertIn("execution_mode: single", migrated_loop)
             self.assertIn("custom-note: preserve-me", migrated_loop)
             self.assertIn("## Shared Contract Paths", migrated_plan)
@@ -803,7 +803,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
-            self.assertIn("Spec2Web state already uses schema 1.3", repeated.stdout)
+            self.assertIn("Spec2Web state already uses schema 1.4", repeated.stdout)
             self.assertEqual(len(list(state_dir.glob(".migration-backup-*"))), 1)
 
     def test_migrate_state_reports_missing_required_file(self) -> None:
@@ -849,7 +849,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             self.assertIn("execution_mode: delegated", loop_state)
             self.assertIn("available_child_slots: 4", loop_state)
             self.assertIn("selected_workers: 1", loop_state)
-            self.assertIn("Spec2Web state already uses schema 1.3", result.stdout)
+            self.assertIn("Spec2Web state already uses schema 1.4", result.stdout)
 
     def test_migrate_state_rejects_unknown_explicit_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -857,7 +857,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             loop_state = Path(tmp) / STATE_DIR_NAME / "loop-state.md"
             loop_state.write_text(
                 loop_state.read_text(encoding="utf-8").replace(
-                    "schema_version: 1.3", "schema_version: 2.0"
+                    "schema_version: 1.4", "schema_version: 2.0"
                 ),
                 encoding="utf-8",
             )

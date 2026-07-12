@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate Spec2Web state metadata to the V1.3 schema."""
+"""Migrate Spec2Web state metadata to the V1.4 schema."""
 
 from __future__ import annotations
 
@@ -9,20 +9,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-STATE_DIR_NAME = "webbuilder"
-LEGACY_STATE_DIR_NAME = "spec2web"
-SCHEMA_VERSION = "1.3"
-
-
-def resolve_state_dir(target: Path) -> Path:
-    state_dir = target / STATE_DIR_NAME
-    legacy_state_dir = target / LEGACY_STATE_DIR_NAME
-    if not (state_dir / "loop-state.md").exists() and (
-        legacy_state_dir / "loop-state.md"
-    ).exists():
-        return legacy_state_dir
-    return state_dir
+from state_schema import SCHEMA_VERSION, SUPPORTED_SOURCE_VERSIONS, resolve_state_dir
 
 ORCHESTRATION_FIELDS = [
     ("schema_version", SCHEMA_VERSION),
@@ -109,12 +96,9 @@ def migrate_loop_state(text: str) -> str:
         "- unauthorized external AI workers are forbidden",
     )
     version_match = re.search(r"(?m)^schema_version:\s*([^\s#]+)\s*$", text)
-    if version_match and version_match.group(1) not in {
-        "1.0",
-        "1.1",
-        "1.2",
-        SCHEMA_VERSION,
-    }:
+    if version_match and version_match.group(1) not in (
+        SUPPORTED_SOURCE_VERSIONS | {SCHEMA_VERSION}
+    ):
         raise ValueError(
             f"unsupported schema_version: {version_match.group(1)}; "
             "manual migration required"
@@ -252,7 +236,9 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate WebBuilder state to V1.3.")
+    parser = argparse.ArgumentParser(
+        description=f"Migrate WebBuilder state to V{SCHEMA_VERSION}."
+    )
     parser.add_argument(
         "--target",
         default=".",

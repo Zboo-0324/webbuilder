@@ -8,30 +8,13 @@ import re
 from itertools import combinations
 from pathlib import Path
 
-
-STATE_DIR_NAME = "webbuilder"
-LEGACY_STATE_DIR_NAME = "spec2web"
-SCHEMA_VERSION = "1.3"
-
-
-def resolve_state_dir(target: Path) -> Path:
-    state_dir = target / STATE_DIR_NAME
-    legacy_state_dir = target / LEGACY_STATE_DIR_NAME
-    if not (state_dir / "loop-state.md").exists() and (
-        legacy_state_dir / "loop-state.md"
-    ).exists():
-        return legacy_state_dir
-    return state_dir
-
-REQUIRED_FILES = [
-    "project-rules.md",
-    "requirements-baseline.md",
-    "system-design.md",
-    "task-plan.md",
-    "loop-state.md",
-    "validation-log.md",
-    "delivery-report.md",
-]
+from state_schema import (
+    REQUIRED_FILES,
+    SCHEMA_VERSION,
+    TASK_SECTION_PATTERN,
+    resolve_state_dir,
+    top_level_value,
+)
 
 TASK_FIELDS = [
     "requirement_ids",
@@ -180,21 +163,11 @@ DELIVERY_PLACEHOLDERS = [
     "work has not started",
 ]
 
-TASK_SECTION_PATTERN = re.compile(
-    r"(?ms)^###\s+(TASK-[A-Za-z0-9_-]+):[^\n]*\n(.*?)(?=^###\s+TASK-|\Z)"
-)
-
-
 def read_text(state_dir: Path, filename: str) -> str:
     path = state_dir / filename
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
-
-
-def top_level_value(text: str, key: str) -> str | None:
-    match = re.search(rf"(?m)^{re.escape(key)}:\s*([^\s#]+)\s*$", text)
-    return match.group(1) if match else None
 
 
 def task_field_value(body: str, field: str) -> str | None:

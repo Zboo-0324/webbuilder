@@ -6,8 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-
-STATE_DIR_NAME = "webbuilder"
+from state_schema import SCHEMA_VERSION, STATE_DIR_NAME
 
 
 TEMPLATES = {
@@ -275,10 +274,10 @@ For non-Git or single-session tasks, pair `handoff_mode: single_session` with `i
 - same_fingerprint_count: 0
 - integration_policy: orchestrator_review_then_serial_integration
 """,
-    "loop-state.md": """# Loop State
+    "loop-state.md": f"""# Loop State
 
 workflow: spec2web
-schema_version: 1.3
+schema_version: {SCHEMA_VERSION}
 status: active
 current_phase: project_rules
 current_task: null
