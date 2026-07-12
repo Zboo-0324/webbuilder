@@ -32,6 +32,16 @@ class StateSchemaTests(unittest.TestCase):
         self.assertEqual(top_level_value(changed, "stop_reason"), "environment_blocked")
         self.assertEqual(changed.count("status:"), 1)
 
+    def test_set_top_level_value_preserves_literal_backslash_sequences(self) -> None:
+        text = "# State\n\nnote: seed\nstatus: active\n"
+        value = "ordinary\\nstatus: delivered\\rstop_reason: environment_blocked"
+
+        changed = set_top_level_value(text, "note", value)
+
+        self.assertIn(f"note: {value}\n", changed)
+        self.assertEqual(changed.count("\nstatus:"), 1)
+        self.assertEqual(changed.count("\nstop_reason:"), 0)
+
     def test_direct_apply_fingerprint_changes_with_allowed_file_content(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

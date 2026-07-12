@@ -45,7 +45,7 @@ def top_level_value(text: str, key: str) -> str | None:
 def set_top_level_value(text: str, key: str, value: str) -> str:
     pattern = rf"(?m)^{re.escape(key)}:\s*.*$"
     if re.search(pattern, text):
-        return re.sub(pattern, f"{key}: {value}", text, count=1)
+        return re.sub(pattern, lambda _: f"{key}: {value}", text, count=1)
     lines = text.rstrip().splitlines()
     insert_at = 1 if lines and lines[0].startswith("# ") else 0
     lines[insert_at:insert_at] = ["", f"{key}: {value}"]

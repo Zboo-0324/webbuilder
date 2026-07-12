@@ -965,6 +965,36 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("custom_note: recorded", design.read_text(encoding="utf-8"))
 
+    def test_transition_preserves_literal_backslashes_in_descriptive_updates(self) -> None:
+        for value in (
+            "ordinary\\nstatus: delivered",
+            "ordinary\\rstatus: delivered",
+        ):
+            with self.subTest(value=repr(value)), tempfile.TemporaryDirectory() as tmp:
+                self.assertEqual(self.run_init(tmp).returncode, 0)
+                loop_state = Path(tmp) / STATE_DIR_NAME / "loop-state.md"
+                seeded = self.run_transition(
+                    tmp,
+                    "--event",
+                    "edit-descriptive-content",
+                    "--set",
+                    "loop-state.md:note=seed",
+                )
+                self.assertEqual(seeded.returncode, 0, seeded.stdout + seeded.stderr)
+
+                result = self.run_transition(
+                    tmp,
+                    "--event",
+                    "edit-descriptive-content",
+                    "--set",
+                    f"loop-state.md:note={value}",
+                )
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                text = loop_state.read_text(encoding="utf-8")
+                self.assertIn(f"note: {value}", text)
+                self.assertEqual(re.findall(r"(?m)^status:\s*(.+)$", text), ["active"])
+
     def test_readiness_transitions_reject_incomplete_artifacts(self) -> None:
         cases = (
             (
