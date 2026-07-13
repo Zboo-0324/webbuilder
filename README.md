@@ -72,6 +72,7 @@ webbuilder/
     init-state.py
     check-state.py
     migrate-state.py
+    transition-state.py
 ```
 
 ## 安装
@@ -192,6 +193,13 @@ python webbuilder/scripts/check-state.py --target . --phase structure
 python webbuilder/scripts/check-state.py --target . --phase execution
 ```
 
+恢复工作流前，先恢复可能中断的 State Kernel 事务并重新检查结构：
+
+```powershell
+python webbuilder/scripts/transition-state.py --target . --recover
+python webbuilder/scripts/check-state.py --target . --phase structure
+```
+
 最终交付前，运行交付门禁：
 
 ```powershell
@@ -208,7 +216,9 @@ python webbuilder/scripts/check-state.py --target . --phase delivery
 - `integration`：已验收任务、集成策略与提交、主工作区复验证据
 - `delivery`：全部任务的验收和集成证据闭环、交付报告完成和终态工作流
 
-旧版本状态文件不会被初始化脚本覆盖。将 V1、V1.0、V1.1 或 V1.2 状态迁移到 schema 1.3 后，缺少风险依据的任务会被标记为 `unclassified`，必须由 Planner 显式补充分类后才能执行。
+旧版本状态文件不会被初始化脚本覆盖。schema 1.4 新增引导交付与恢复元数据（`delivery_mode`、`autonomy_scope`、`stop_reason`、`resume_checkpoint`、`active_run_id`、`state_revision`、`pending_transition`）。迁移会保留内容并将 V1 到 V1.3 状态升级；缺少风险依据的任务会被标记为 `unclassified`，必须由 Planner 显式补充分类后才能执行。
+
+`loop-state.md` 是规范的 State Kernel 记录。智能体可以编辑描述性内容并提交证据，但不得手动设置审批、就绪、验收、集成、停止/恢复或交付成功值。状态变更会在 `webbuilder/.transitions/` 下写入事务日志；恢复只会完成未发生分歧的待处理事务。
 
 ## 工作流
 
@@ -264,6 +274,7 @@ Spec2Web 对 Git 项目中的委派或并行任务使用 PR/worktree 交接：
 - worker 提交本地 PR 包或远程 PR 后停止
 - Orchestrator 通过 `merge`、`squash_merge`、`cherry_pick` 或 `integration_commit` 串行集成
 - 每次集成后都需要在主工作区重新验证
+- 清理 worktree 前，必须将已接受的证据复制到规范状态和 `validation-log.md`
 
 Spec2Web 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
 
@@ -286,7 +297,7 @@ python webbuilder/scripts/check-state.py --target $tmp --phase structure
 校验 Skill 包：
 
 ```powershell
-python "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
+python -X utf8 "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
 ```
 
 ## 设计原则

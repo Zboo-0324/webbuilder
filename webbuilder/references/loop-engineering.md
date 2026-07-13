@@ -165,7 +165,7 @@ Repair loops must be evidence-driven and bounded:
 - same error fingerprint 3 times: stop
 
 Each repair must cite new evidence, change one main cause, rerun verification, and update state.
-Record `repair_attempt`, `last_failure_fingerprint`, and `same_fingerprint_count` in the task contract. The checker rejects attempts beyond the task budget and stops automatic repair when the same fingerprint reaches three occurrences.
+Record `task_repair_attempt`, `task_failure_fingerprint`, and `task_same_fingerprint_count` for task execution, plus `integration_repair_attempt`, `integration_failure_fingerprint`, and `integration_same_fingerprint_count` for integration repair. These counters are independent: task dispatch and acceptance allow at most 3 task repairs, while integration allows at most 5 integration repairs. The checker stops the affected repair scope when its same fingerprint reaches three occurrences.
 
 Stop and ask the user when repair needs:
 

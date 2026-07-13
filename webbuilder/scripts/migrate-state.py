@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate Spec2Web state metadata to the V1.3 schema."""
+"""Migrate Spec2Web state metadata to the V1.4 schema."""
 
 from __future__ import annotations
 
@@ -9,23 +9,18 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-STATE_DIR_NAME = "webbuilder"
-LEGACY_STATE_DIR_NAME = "spec2web"
-SCHEMA_VERSION = "1.3"
-
-
-def resolve_state_dir(target: Path) -> Path:
-    state_dir = target / STATE_DIR_NAME
-    legacy_state_dir = target / LEGACY_STATE_DIR_NAME
-    if not (state_dir / "loop-state.md").exists() and (
-        legacy_state_dir / "loop-state.md"
-    ).exists():
-        return legacy_state_dir
-    return state_dir
+from state_schema import SCHEMA_VERSION, SUPPORTED_SOURCE_VERSIONS, resolve_state_dir
+from state_transition import apply_transaction
 
 ORCHESTRATION_FIELDS = [
     ("schema_version", SCHEMA_VERSION),
+    ("delivery_mode", "guided"),
+    ("autonomy_scope", "unconfirmed"),
+    ("stop_reason", "none"),
+    ("resume_checkpoint", "none"),
+    ("active_run_id", "null"),
+    ("state_revision", "0"),
+    ("pending_transition", "null"),
     ("execution_mode", "single"),
     ("host_agent_capability", "unknown"),
     ("available_child_slots", "unknown"),
@@ -49,9 +44,24 @@ TASK_DEFAULT_VALUES = {
     "review_mode": "standard",
     "user_approval": "not_required",
     "residual_risk_owner": "not_applicable",
-    "repair_attempt": "0",
-    "last_failure_fingerprint": "none",
-    "same_fingerprint_count": "0",
+    "task_repair_attempt": "0",
+    "task_failure_fingerprint": "none",
+    "task_same_fingerprint_count": "0",
+    "integration_repair_attempt": "0",
+    "integration_failure_fingerprint": "none",
+    "integration_same_fingerprint_count": "0",
+}
+
+LEGACY_REPAIR_FIELDS = {
+    "repair_attempt": ("task_repair_attempt", "integration_repair_attempt"),
+    "last_failure_fingerprint": (
+        "task_failure_fingerprint",
+        "integration_failure_fingerprint",
+    ),
+    "same_fingerprint_count": (
+        "task_same_fingerprint_count",
+        "integration_same_fingerprint_count",
+    ),
 }
 
 SHARED_CONTRACT_SECTION = """## Shared Contract Paths
@@ -98,6 +108,71 @@ discovery_status: pending
 
 """
 
+CONTRACT_FIELDS = [
+    ("confirmation_status", "pending"),
+    ("contract_revision", "1"),
+    ("approved_contract_revision", "null"),
+    ("approval_digest", "null"),
+    ("approval_scope", "requirements_design_stack_ui_execution"),
+    ("approval_evidence", "null"),
+    ("approved_by", "null"),
+    ("approved_at", "null"),
+    ("discovery_method", "interactive"),
+]
+
+SOLUTION_CONTRACT_SECTION = """## Solution Contract
+
+```json contract-material
+{
+  "problem": "not recorded",
+  "desired_outcome": "not recorded",
+  "target_users": [],
+  "primary_jobs": [],
+  "core_capabilities": [],
+  "non_goals": [],
+  "primary_workflows": [],
+  "page_navigation_summary": "not recorded",
+  "ui_direction": "not recorded",
+  "technology_profile": "not recorded",
+  "public_interfaces": [],
+  "data_boundary": "not recorded",
+  "permission_boundary": "not recorded",
+  "delivery_assumptions": [],
+  "material_risks": [],
+  "acceptance_signals": [],
+  "capabilities": {},
+  "workload_envelope": {
+    "task_count": "not estimated",
+    "browser_flows": [],
+    "external_dependencies": [],
+    "quality_gates": [],
+    "repair_budgets": {"task": 3, "integration": 5},
+    "available_concurrency": "unknown"
+  }
+}
+```
+
+"""
+
+
+def add_top_level_fields(text: str, fields: list[tuple[str, str]]) -> str:
+    missing = [
+        (name, value)
+        for name, value in fields
+        if not re.search(rf"(?m)^{re.escape(name)}:\s*[^\n]*$", text)
+    ]
+    if not missing:
+        return text
+    metadata = "\n".join(f"{name}: {value}" for name, value in missing)
+    status = re.search(r"(?m)^status:\s*[^\n]*$", text)
+    if status:
+        return text[: status.end()] + "\n" + metadata + text[status.end() :]
+    return text.rstrip() + "\n\n" + metadata + "\n"
+
+
+def migrate_contract_reference(text: str) -> str:
+    return add_top_level_fields(text, [("based_on_contract_revision", "1")])
+
 
 def migrate_loop_state(text: str) -> str:
     text = text.replace(
@@ -109,12 +184,9 @@ def migrate_loop_state(text: str) -> str:
         "- unauthorized external AI workers are forbidden",
     )
     version_match = re.search(r"(?m)^schema_version:\s*([^\s#]+)\s*$", text)
-    if version_match and version_match.group(1) not in {
-        "1.0",
-        "1.1",
-        "1.2",
-        SCHEMA_VERSION,
-    }:
+    if version_match and version_match.group(1) not in (
+        SUPPORTED_SOURCE_VERSIONS | {SCHEMA_VERSION}
+    ):
         raise ValueError(
             f"unsupported schema_version: {version_match.group(1)}; "
             "manual migration required"
@@ -160,6 +232,7 @@ def migrate_loop_state(text: str) -> str:
 
 
 def migrate_task_plan(text: str) -> str:
+    text = migrate_contract_reference(text)
     marker = "## Tasks"
     if marker not in text:
         raise ValueError("task-plan.md missing ## Tasks")
@@ -168,6 +241,15 @@ def migrate_task_plan(text: str) -> str:
 
     def migrate_task(match: re.Match[str]) -> str:
         header, body = match.groups()
+        legacy_repair_values = {
+            field: re.search(rf"(?m)^- {re.escape(field)}:\s*([^\n]+)$", body)
+            for field in LEGACY_REPAIR_FIELDS
+        }
+        body = re.sub(
+            r"(?m)^- (repair_attempt|last_failure_fingerprint|same_fingerprint_count):\s*[^\n]+\n?",
+            "",
+            body,
+        )
         has_risk_basis = bool(re.search(r"(?m)^- risk_basis:\s*$", body))
         if not has_risk_basis:
             if re.search(r"(?m)^- risk_level:\s*[^\n]+$", body):
@@ -185,6 +267,13 @@ def migrate_task_plan(text: str) -> str:
 
         for field, default in TASK_DEFAULT_VALUES.items():
             if not re.search(rf"(?m)^- {re.escape(field)}:\s*[^\n]+$", body):
+                for legacy, targets in LEGACY_REPAIR_FIELDS.items():
+                    if field not in targets:
+                        continue
+                    match = legacy_repair_values[legacy]
+                    if match:
+                        default = match.group(1).strip()
+                    break
                 body += f"- {field}: {default}\n"
         for field, values in TASK_DEFAULT_LISTS.items():
             if not re.search(rf"(?m)^- {re.escape(field)}:\s*$", body):
@@ -200,17 +289,37 @@ def migrate_task_plan(text: str) -> str:
 
 
 def migrate_requirements_baseline(text: str) -> str:
-    if re.search(r"(?m)^## User Discovery\s*$", text):
-        return text
-    if re.search(r"(?m)^## First-Principles Analysis\s*$", text):
-        return text.replace("## First-Principles Analysis", DISCOVERY_SECTION + "## First-Principles Analysis", 1)
-    marker = "## Assumptions"
-    if marker in text:
-        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
-    marker = "## Open Questions"
-    if marker in text:
-        return text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
-    return text.rstrip() + "\n\n" + DISCOVERY_SECTION + FIRST_PRINCIPLES_SECTION
+    text = add_top_level_fields(text, CONTRACT_FIELDS)
+    if not re.search(r"(?m)^## User Discovery\s*$", text):
+        if re.search(r"(?m)^## First-Principles Analysis\s*$", text):
+            text = text.replace(
+                "## First-Principles Analysis",
+                DISCOVERY_SECTION + "## First-Principles Analysis",
+                1,
+            )
+        else:
+            marker = "## Assumptions"
+            if marker in text:
+                text = text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+            else:
+                marker = "## Open Questions"
+                if marker in text:
+                    text = text.replace(marker, FIRST_PRINCIPLES_SECTION + marker, 1)
+                else:
+                    text = text.rstrip() + "\n\n" + FIRST_PRINCIPLES_SECTION
+            if not re.search(r"(?m)^## User Discovery\s*$", text):
+                text = text.replace(
+                    "## First-Principles Analysis",
+                    DISCOVERY_SECTION + "## First-Principles Analysis",
+                    1,
+                )
+    if not re.search(r"(?m)^## Solution Contract\s*$", text):
+        marker = "## First-Principles Analysis"
+        if marker in text:
+            text = text.replace(marker, SOLUTION_CONTRACT_SECTION + marker, 1)
+        else:
+            text = text.rstrip() + "\n\n" + SOLUTION_CONTRACT_SECTION
+    return text
 
 
 def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
@@ -218,7 +327,8 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
     loop_state = state_dir / "loop-state.md"
     task_plan = state_dir / "task-plan.md"
     requirements_baseline = state_dir / "requirements-baseline.md"
-    for path in (loop_state, task_plan, requirements_baseline):
+    system_design = state_dir / "system-design.md"
+    for path in (loop_state, task_plan, requirements_baseline, system_design):
         if not path.exists():
             raise ValueError(f"missing required file: {path}")
 
@@ -226,6 +336,7 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
         loop_state: loop_state.read_text(encoding="utf-8"),
         task_plan: task_plan.read_text(encoding="utf-8"),
         requirements_baseline: requirements_baseline.read_text(encoding="utf-8"),
+        system_design: system_design.read_text(encoding="utf-8"),
     }
     migrated = {
         loop_state: migrate_loop_state(original[loop_state]),
@@ -233,10 +344,11 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
         requirements_baseline: migrate_requirements_baseline(
             original[requirements_baseline]
         ),
+        system_design: migrate_contract_reference(original[system_design]),
     }
     changed = [
         path
-        for path in (loop_state, task_plan, requirements_baseline)
+        for path in (loop_state, task_plan, requirements_baseline, system_design)
         if migrated[path] != original[path]
     ]
     if dry_run or not changed:
@@ -247,12 +359,23 @@ def migrate(target: Path, dry_run: bool) -> tuple[list[Path], Path | None]:
     backup_dir.mkdir(parents=False, exist_ok=False)
     for path in changed:
         shutil.copy2(path, backup_dir / path.name)
-        path.write_text(migrated[path], encoding="utf-8", newline="\n")
+    revision_match = re.search(
+        r"(?m)^state_revision:\s*(\d+)\s*$", original[loop_state]
+    )
+    expected_revision = int(revision_match.group(1)) if revision_match else 0
+    apply_transaction(
+        state_dir,
+        "migrate-schema-1.4",
+        {path.name: migrated[path] for path in changed},
+        expected_revision=expected_revision,
+    )
     return changed, backup_dir
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate WebBuilder state to V1.3.")
+    parser = argparse.ArgumentParser(
+        description=f"Migrate WebBuilder state to V{SCHEMA_VERSION}."
+    )
     parser.add_argument(
         "--target",
         default=".",

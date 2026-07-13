@@ -31,20 +31,32 @@ When the user asks to initialize WebBuilder:
 1. Resolve `<skill-root>` to the folder containing this `SKILL.md` and `<project-root>` to the target project.
 2. Read project rule files before changing state.
 3. Run `python <skill-root>/scripts/init-state.py --target <project-root>`.
-4. If existing state predates schema 1.3, dry-run and then apply the non-destructive migration:
+4. If existing state predates schema 1.4, dry-run and then apply the non-destructive migration:
 
 ```text
 python <skill-root>/scripts/migrate-state.py --target <project-root> --dry-run
 python <skill-root>/scripts/migrate-state.py --target <project-root>
 ```
 
-5. Run the structure check and repair remaining fields in older state files without overwriting confirmed content:
+5. Recover an interrupted transition, then run the structure check and repair remaining fields in older state files without overwriting confirmed content:
 
 ```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --recover
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
 ```
 
 6. Run the mandatory User Discovery Gate below before writing or confirming the Requirement Baseline. Keep generated artifacts `draft` until their phase exit gates are satisfied.
+
+## Resume Through the State Kernel
+
+Before every resume, recover the State Kernel and verify its structure before reading or changing project state:
+
+```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --recover
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+```
+
+Recovery completes the one journaled transition when its files are still at known original or target contents. If it reports divergent state, stop for manual inspection; do not edit around the journal.
 
 ## Hard Gates
 
@@ -213,9 +225,13 @@ Maintain project memory in `webbuilder/`:
 - `validation-log.md`
 - `delivery-report.md`
 
-Conversation context does not replace these files. On resume, first read `project-rules.md`, `task-plan.md`, and `loop-state.md`.
+Conversation context does not replace these files. `loop-state.md` is the canonical State Kernel record. On resume, recover and structure-check it before reading `project-rules.md`, `task-plan.md`, and `loop-state.md`.
 
-Require `schema_version: 1.3` in `loop-state.md`.
+Require `schema_version: 1.4` in `loop-state.md`, including `delivery_mode`, `autonomy_scope`, `stop_reason`, `resume_checkpoint`, `active_run_id`, `state_revision`, and `pending_transition`.
+
+Agents may edit descriptive content and submit evidence, but may not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. Use the State Kernel transition and checker APIs for those changes. If no supported transition applies, stop and ask rather than editing a control value directly.
+
+Use only the supported `transition-state.py --event` lifecycle operations; they construct control updates internally and validate their applicable gates before writing. `--set` is reserved for `edit-descriptive-content` and rejects lifecycle control keys. The exact event table is in `references/state-files.md`.
 
 For templates and update rules, read `references/state-files.md`.
 
@@ -274,9 +290,12 @@ Every task must have:
 - `shared_resources`
 - `conflict_domains`
 - `integration_dependencies`
-- `repair_attempt`
-- `last_failure_fingerprint`
-- `same_fingerprint_count`
+- `task_repair_attempt`
+- `task_failure_fingerprint`
+- `task_same_fingerprint_count`
+- `integration_repair_attempt`
+- `integration_failure_fingerprint`
+- `integration_same_fingerprint_count`
 - `integration_policy`
 
 For task rules and templates, read `references/task-breakdown.md`.
@@ -344,6 +363,8 @@ Use finite repair loops:
 - same error fingerprint 3 times: stop.
 
 Each repair must cite new evidence, change one main cause, rerun verification, and update `validation-log.md`. If fixing requires changing confirmed requirements, expanding scope, adding high-risk dependencies, using real credentials, or creating paid resources, stop and ask the user.
+
+Keep the scopes separate: `task_repair_attempt` and its fingerprint fields govern task execution and acceptance, while `integration_repair_attempt` and its fingerprint fields govern post-acceptance integration. A failure in one scope never consumes the other scope's budget.
 
 ## Superpowers
 

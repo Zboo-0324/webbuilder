@@ -104,7 +104,7 @@ Reviewer recommends approve, repair, or block. Reviewer does not integrate or ma
 
 ## Independent Checker
 
-For normal delegated or parallel work, one fresh agent may combine Tester and Reviewer duties when `checker_strategy: independent_checker`. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. `high` and `critical` tasks require `checker_strategy: separate_tester_reviewer`: Developer, Tester, and Reviewer identities are all distinct. The Tester records observed behavior and the Reviewer judges risk, maintainability, scope, and evidence.
+Fresh sessions of the same model can satisfy process independence, but deterministic evidence remains mandatory. For normal delegated or parallel work, one fresh checker identity may combine Tester and Reviewer duties when `checker_strategy: independent_checker`. It must run verification, review scope and diff evidence, record both results, and remain independent from the Developer. `high` and `critical` tasks require `checker_strategy: separate_tester_reviewer`: Developer, Tester, and Reviewer identities are all distinct. The Tester records observed behavior and the Reviewer judges risk, maintainability, scope, and evidence.
 
 When Tester and Reviewer disagree, the Orchestrator records the disagreement, supporting evidence, decision, owner, and residual risk. Do not resolve a disagreement by vote or confidence alone.
 

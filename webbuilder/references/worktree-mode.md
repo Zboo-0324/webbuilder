@@ -30,6 +30,15 @@ Workers must be agents or subsessions exposed by the current Codex host. Do not 
 - Workers submit evidence; Orchestrator accepts, integrates, and marks completion.
 - The task or parallel dispatch gate passes.
 
+Before resuming any handoff, recover and structure-check the State Kernel:
+
+```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --recover
+python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+```
+
+The State Kernel journal in `webbuilder/.transitions/` is authoritative for interrupted multi-file updates. Do not continue a handoff around a pending or divergent journal.
+
 If the project is not a Git repository, ask the user before initializing Git.
 
 ## Default Single-Task Mode
@@ -84,6 +93,7 @@ Orchestrator selects a no-conflict parallel group
 - choose and record the integration strategy,
 - integrate serially,
 - run post-integration verification in the main workspace,
+- copy accepted submission, acceptance, and integration evidence into the canonical state and `validation-log.md` before worktree cleanup,
 - clean up worktrees only after state and validation evidence are updated.
 
 ## Worker Duties
@@ -112,6 +122,8 @@ Every Developer submission must include:
 - diff command, such as `git diff <base>...<branch>`.
 
 For a real remote PR, also include the PR URL. For a local PR package, record the package in `loop-state.md` or the task entry.
+
+The PR package is the artifact handoff boundary. Once accepted, copy its durable evidence into the canonical state and `validation-log.md` before removing the worktree; the worktree is not the lasting record.
 
 ## Formal Integration Point
 
@@ -144,6 +156,7 @@ Use `integration_commit` sparingly. It is for Orchestrator-owned reconciliation 
 - Conflicts stop the integration queue.
 - Scope drift rejects the integration.
 - Failed verification enters repair or blocked state.
+- Task repair counters and integration repair counters are separate: record task failures against `task_repair_attempt` and its fingerprint fields, and post-acceptance failures against `integration_repair_attempt` and its fingerprint fields.
 
 ## Naming
 

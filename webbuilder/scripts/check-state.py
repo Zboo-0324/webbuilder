@@ -4,34 +4,24 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from itertools import combinations
 from pathlib import Path
 
-
-STATE_DIR_NAME = "webbuilder"
-LEGACY_STATE_DIR_NAME = "spec2web"
-SCHEMA_VERSION = "1.3"
-
-
-def resolve_state_dir(target: Path) -> Path:
-    state_dir = target / STATE_DIR_NAME
-    legacy_state_dir = target / LEGACY_STATE_DIR_NAME
-    if not (state_dir / "loop-state.md").exists() and (
-        legacy_state_dir / "loop-state.md"
-    ).exists():
-        return legacy_state_dir
-    return state_dir
-
-REQUIRED_FILES = [
-    "project-rules.md",
-    "requirements-baseline.md",
-    "system-design.md",
-    "task-plan.md",
-    "loop-state.md",
-    "validation-log.md",
-    "delivery-report.md",
-]
+from contract_core import (
+    contract_revision_errors,
+    extract_contract_material,
+    validate_capabilities,
+    validate_workload_envelope,
+)
+from state_schema import (
+    REQUIRED_FILES,
+    SCHEMA_VERSION,
+    TASK_SECTION_PATTERN,
+    resolve_state_dir,
+    top_level_value,
+)
 
 TASK_FIELDS = [
     "requirement_ids",
@@ -63,9 +53,12 @@ TASK_FIELDS = [
     "shared_resources",
     "conflict_domains",
     "integration_dependencies",
-    "repair_attempt",
-    "last_failure_fingerprint",
-    "same_fingerprint_count",
+    "task_repair_attempt",
+    "task_failure_fingerprint",
+    "task_same_fingerprint_count",
+    "integration_repair_attempt",
+    "integration_failure_fingerprint",
+    "integration_same_fingerprint_count",
     "integration_policy",
 ]
 
@@ -74,6 +67,13 @@ LOOP_STATE_MARKERS = [
     "schema_version:",
     "status:",
     "current_phase:",
+    "delivery_mode:",
+    "autonomy_scope:",
+    "stop_reason:",
+    "resume_checkpoint:",
+    "active_run_id:",
+    "state_revision:",
+    "pending_transition:",
     "execution_mode:",
     "host_agent_capability:",
     "available_child_slots:",
@@ -88,6 +88,7 @@ LOOP_STATE_MARKERS = [
 ]
 
 SYSTEM_DESIGN_MARKERS = [
+    "based_on_contract_revision:",
     "## Technology Strategy",
     "### Options Considered",
     "### Selected Stack",
@@ -99,12 +100,25 @@ SYSTEM_DESIGN_MARKERS = [
 ]
 
 REQUIREMENTS_BASELINE_MARKERS = [
+    "confirmation_status:",
+    "contract_revision:",
+    "approved_contract_revision:",
+    "approval_digest:",
+    "approval_scope:",
+    "approval_evidence:",
+    "approved_by:",
+    "approved_at:",
+    "discovery_method:",
     "## User Discovery",
+    "## Solution Contract",
+    "```json contract-material",
     "## First-Principles Analysis",
     "### Core Outcome",
     "### Hard Constraints and Invariants",
     "### Assumptions and Evidence",
 ]
+
+TASK_PLAN_MARKERS = ["based_on_contract_revision:"]
 
 VALID_LOOP_STATUSES = {"active", "paused", "disabled", "blocked", "delivered"}
 VALID_FILE_STATUSES = {
@@ -143,6 +157,16 @@ VALID_CHECKER_STRATEGIES = {
 }
 VALID_ACTIVE_CHECKER_STRATEGIES = VALID_CHECKER_STRATEGIES | {"mixed"}
 VALID_USER_APPROVALS = {"not_required", "required", "approved"}
+VALID_DELIVERY_MODES = {"guided"}
+VALID_AUTONOMY_SCOPES = {"unconfirmed"}
+VALID_STOP_REASONS = {
+    "none",
+    "verification_failed",
+    "needs_user_action",
+    "needs_decision",
+    "repair_exhausted",
+    "environment_blocked",
+}
 
 EXECUTION_STATUSES = {
     "project-rules.md": "ready",
@@ -180,21 +204,11 @@ DELIVERY_PLACEHOLDERS = [
     "work has not started",
 ]
 
-TASK_SECTION_PATTERN = re.compile(
-    r"(?ms)^###\s+(TASK-[A-Za-z0-9_-]+):[^\n]*\n(.*?)(?=^###\s+TASK-|\Z)"
-)
-
-
 def read_text(state_dir: Path, filename: str) -> str:
     path = state_dir / filename
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
-
-
-def top_level_value(text: str, key: str) -> str | None:
-    match = re.search(rf"(?m)^{re.escape(key)}:\s*([^\s#]+)\s*$", text)
-    return match.group(1) if match else None
 
 
 def task_field_value(body: str, field: str) -> str | None:
@@ -281,6 +295,61 @@ def integer_value(text: str, key: str) -> int | None:
         return None
 
 
+def runtime_field_errors(state_dir: Path, loop_state: str) -> list[str]:
+    errors: list[str] = []
+    values = {
+        "delivery_mode": top_level_value(loop_state, "delivery_mode"),
+        "autonomy_scope": top_level_value(loop_state, "autonomy_scope"),
+        "stop_reason": top_level_value(loop_state, "stop_reason"),
+    }
+    for field, valid_values in (
+        ("delivery_mode", VALID_DELIVERY_MODES),
+        ("autonomy_scope", VALID_AUTONOMY_SCOPES),
+        ("stop_reason", VALID_STOP_REASONS),
+    ):
+        if values[field] not in valid_values:
+            allowed = ", ".join(sorted(valid_values))
+            errors.append(f"loop-state.md {field} must be one of: {allowed}")
+
+    if top_level_value(loop_state, "resume_checkpoint") != "none":
+        errors.append("loop-state.md resume_checkpoint must be none in guided mode")
+    if top_level_value(loop_state, "active_run_id") != "null":
+        errors.append("loop-state.md active_run_id must be null in guided mode")
+
+    revision = top_level_value(loop_state, "state_revision")
+    if revision is None or not revision.isascii() or not revision.isdigit():
+        errors.append("loop-state.md state_revision must be a non-negative integer")
+
+    pending_transition = top_level_value(loop_state, "pending_transition")
+    transition_dir = state_dir / ".transitions"
+    journals = []
+    if transition_dir.exists():
+        journals = sorted(
+            path for path in transition_dir.glob("*.json") if not path.name.endswith(".complete.json")
+        )
+    if pending_transition == "null":
+        if journals:
+            errors.append("loop-state.md pending_transition is null with a pending transition journal")
+        return errors
+    if not pending_transition:
+        errors.append("loop-state.md pending_transition must be null or a pending transition ID")
+        return errors
+    if len(journals) != 1 or journals[0].stem != pending_transition:
+        errors.append(
+            "loop-state.md pending_transition does not match a pending transition journal"
+        )
+        return errors
+    try:
+        journal = json.loads(journals[0].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        errors.append("loop-state.md pending_transition journal is unreadable")
+        return errors
+    if journal.get("transition_id") != pending_transition or journal.get("status") != "pending":
+        errors.append("loop-state.md pending_transition does not match its pending journal")
+    errors.append("loop-state.md pending_transition must be null before phase checks")
+    return errors
+
+
 def check_structure(state_dir: Path) -> list[str]:
     errors: list[str] = []
 
@@ -348,6 +417,7 @@ def check_structure(state_dir: Path) -> list[str]:
             errors.append(
                 f"loop-state.md active_checker_strategy must be one of: {allowed}"
             )
+        errors.extend(runtime_field_errors(state_dir, loop_state))
 
     system_design = read_text(state_dir, "system-design.md")
     if system_design:
@@ -368,6 +438,9 @@ def check_structure(state_dir: Path) -> list[str]:
 
     task_plan = read_text(state_dir, "task-plan.md")
     if task_plan:
+        for marker in TASK_PLAN_MARKERS:
+            if marker not in task_plan:
+                errors.append(f"task-plan.md missing marker: {marker}")
         sections = TASK_SECTION_PATTERN.findall(task_plan)
         if not sections:
             errors.append("task-plan.md must contain at least one TASK section")
@@ -451,7 +524,12 @@ def check_structure(state_dir: Path) -> list[str]:
                 allowed = ", ".join(sorted(VALID_USER_APPROVALS))
                 errors.append(f"{task_id} user_approval must be one of: {allowed}")
 
-            for field in ("repair_attempt", "same_fingerprint_count"):
+            for field in (
+                "task_repair_attempt",
+                "task_same_fingerprint_count",
+                "integration_repair_attempt",
+                "integration_same_fingerprint_count",
+            ):
                 value = task_field_value(body, field)
                 try:
                     valid_value = value is not None and int(value) >= 0
@@ -463,8 +541,42 @@ def check_structure(state_dir: Path) -> list[str]:
     return errors
 
 
+def check_specification_readiness(state_dir: Path) -> list[str]:
+    errors: list[str] = []
+    errors.extend(contract_revision_errors(state_dir))
+
+    requirements_text = read_text(state_dir, "requirements-baseline.md")
+    if not requirements_text:
+        return errors
+
+    try:
+        material = extract_contract_material(requirements_text)
+    except ValueError:
+        return errors
+
+    errors.extend(validate_capabilities(
+        material.get("capabilities", {}),
+        delivery_assumptions=material.get("delivery_assumptions"),
+    ))
+    errors.extend(validate_workload_envelope(material.get("workload_envelope", {})))
+
+    if re.search(r"(?mi)^- not recorded\s*$", requirements_text):
+        errors.append("requirements-baseline.md contains '- not recorded'")
+
+    workflows = material.get("primary_workflows", [])
+    if not workflows or not all(str(w).strip() for w in workflows):
+        errors.append("primary_workflows must be nonempty")
+
+    signals = material.get("acceptance_signals", [])
+    if not signals or not all(str(s).strip() for s in signals):
+        errors.append("acceptance_signals must be nonempty")
+
+    return errors
+
+
 def check_execution_readiness(state_dir: Path, loop_status: str) -> list[str]:
     errors: list[str] = []
+    errors.extend(contract_revision_errors(state_dir))
 
     for filename, expected in EXECUTION_STATUSES.items():
         actual = top_level_value(read_text(state_dir, filename), "status")
@@ -510,25 +622,20 @@ def incomplete_dependency_errors(
     return errors
 
 
-def repair_state_errors(task_id: str, body: str) -> list[str]:
+def repair_scope_errors(task_id: str, body: str, scope: str, budget: int) -> list[str]:
     errors: list[str] = []
-    repair_budget = task_field_value(body, "repair_budget")
-    repair_attempt = task_field_value(body, "repair_attempt")
-    same_fingerprint_count = task_field_value(body, "same_fingerprint_count")
-    if (
-        repair_budget is not None
-        and repair_attempt is not None
-        and repair_budget.isdigit()
-        and repair_attempt.isdigit()
-        and int(repair_attempt) > int(repair_budget)
-    ):
-        errors.append(f"{task_id} repair_attempt exceeds repair_budget")
-    if (
-        same_fingerprint_count is not None
-        and same_fingerprint_count.isdigit()
-        and int(same_fingerprint_count) >= 3
-    ):
-        errors.append(f"{task_id} repeated failure fingerprint requires block")
+    attempt = task_field_value(body, f"{scope}_repair_attempt")
+    repeated = task_field_value(body, f"{scope}_same_fingerprint_count")
+    if attempt is None or not attempt.isascii() or not attempt.isdigit():
+        errors.append(f"{task_id} {scope}_repair_attempt must be a non-negative integer")
+    elif int(attempt) > budget:
+        errors.append(f"{task_id} {scope}_repair_attempt exceeds budget {budget}")
+    if repeated is None or not repeated.isascii() or not repeated.isdigit():
+        errors.append(
+            f"{task_id} {scope}_same_fingerprint_count must be a non-negative integer"
+        )
+    elif int(repeated) >= 3:
+        errors.append(f"{task_id} repeated {scope} failure fingerprint requires block")
     return errors
 
 
@@ -625,7 +732,7 @@ def check_task_readiness(state_dir: Path, task_id: str | None) -> list[str]:
             f"{selected_workers} > {available_slots}"
         )
 
-    errors.extend(repair_state_errors(task_id, body))
+    errors.extend(repair_scope_errors(task_id, body, "task", 3))
 
     return errors
 
@@ -704,7 +811,7 @@ def check_parallel_readiness(
                 f"{task_id} status must be pending or needs_repair for parallel start"
             )
         errors.extend(incomplete_dependency_errors(task_id, body, tasks))
-        errors.extend(repair_state_errors(task_id, body))
+        errors.extend(repair_scope_errors(task_id, body, "task", 3))
 
         if task_field_value(body, "handoff_mode") != "pr_worktree":
             errors.append(f"{task_id} parallel task requires handoff_mode: pr_worktree")
@@ -874,15 +981,38 @@ def check_acceptance_readiness(state_dir: Path, task_id: str | None) -> list[str
     if record_value(record, "disagreement_status") == "unresolved":
         errors.append(f"{task_id} acceptance record has unresolved reviewer disagreement")
 
-    identities = [
-        record_value(record, "developer_identity"),
-        record_value(record, "tester_identity"),
-        record_value(record, "reviewer_identity"),
-    ]
-    if all(usable_evidence(identity) for identity in identities) and len(set(identities)) != 3:
-        errors.append(f"{task_id} Developer, Tester, and Reviewer identities must differ")
-
     risk_level = task_field_value(body, "risk_level")
+    developer = record_value(record, "developer_identity")
+    tester = record_value(record, "tester_identity")
+    reviewer = record_value(record, "reviewer_identity")
+    checker_strategy = task_field_value(body, "checker_strategy")
+
+    for field, identity in (
+        ("developer_identity", developer),
+        ("tester_identity", tester),
+        ("reviewer_identity", reviewer),
+    ):
+        if not usable_evidence(identity):
+            errors.append(f"{task_id} acceptance {field} must be usable evidence")
+
+    if risk_level in {"high", "critical"} and checker_strategy != "separate_tester_reviewer":
+        errors.append(
+            f"{task_id} {risk_level}-risk work requires separate Tester and Reviewer"
+        )
+    if checker_strategy == "independent_checker":
+        if usable_evidence(developer) and developer in {tester, reviewer}:
+            errors.append(f"{task_id} independent checker must differ from Developer")
+    elif checker_strategy == "separate_tester_reviewer":
+        identities = [developer, tester, reviewer]
+        if all(usable_evidence(value) for value in identities) and len(set(identities)) != 3:
+            errors.append(
+                f"{task_id} separate_tester_reviewer requires distinct identities"
+            )
+    elif checker_strategy == "single_session" and risk_level not in {"low"}:
+        errors.append(f"{task_id} single_session acceptance is limited to low-risk work")
+
+    errors.extend(repair_scope_errors(task_id, body, "task", 3))
+
     if risk_level in {"high", "critical"}:
         expected = record_values(record, "adversarial_cases_expected")
         passed = record_values(record, "adversarial_cases_passed")
@@ -937,6 +1067,7 @@ def check_integration_readiness(state_dir: Path, task_id: str | None) -> list[st
         errors.append(f"{task_id} main_workspace_verification must be passed")
     if record_value(record, "final_task_status") != "complete":
         errors.append(f"{task_id} integration final_task_status must be complete")
+    errors.extend(repair_scope_errors(task_id, body, "integration", 5))
     return errors
 
 
@@ -944,6 +1075,10 @@ def check_delivery_readiness(state_dir: Path) -> list[str]:
     errors = check_execution_readiness(state_dir, loop_status="delivered")
 
     loop_state = read_text(state_dir, "loop-state.md")
+    if top_level_value(loop_state, "pending_transition") != "null":
+        errors.append("loop-state.md pending_transition must be null for delivery")
+    if top_level_value(loop_state, "stop_reason") != "none":
+        errors.append("loop-state.md stop_reason must be none for delivery")
     current_phase = top_level_value(loop_state, "current_phase")
     if current_phase != "delivery":
         errors.append(
@@ -999,7 +1134,9 @@ def check_state(
         return [f"missing state directory: {state_dir}"]
 
     errors = check_structure(state_dir)
-    if phase == "execution":
+    if phase == "specification":
+        errors.extend(check_specification_readiness(state_dir))
+    elif phase == "execution":
         errors.extend(check_execution_readiness(state_dir, loop_status="active"))
     elif phase == "task":
         errors.extend(check_task_readiness(state_dir, task_id))
@@ -1027,6 +1164,7 @@ def main() -> int:
         "--phase",
         choices=(
             "structure",
+            "specification",
             "execution",
             "task",
             "parallel",
@@ -1036,8 +1174,9 @@ def main() -> int:
         ),
         default="structure",
         help=(
-            "Validation depth: structure checks files and contracts; execution "
-            "requires confirmed baselines; task and parallel validate dispatch; "
+            "Validation depth: structure checks files and contracts; specification "
+            "validates contract completeness and revision; execution requires "
+            "confirmed baselines; task and parallel validate dispatch; "
             "acceptance and integration validate per-task evidence; delivery requires "
             "terminal state and evidence closure."
         ),
