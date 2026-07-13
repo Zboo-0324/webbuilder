@@ -14,11 +14,11 @@ class Command(BaseCommand):
             defaults={"email": "reviewer@example.com"},
         )
         if created:
-            user.set_password("review-pass")
-            user.save()
             self.stdout.write(self.style.SUCCESS("Created user 'reviewer'."))
         else:
             self.stdout.write("User 'reviewer' already exists.")
+        user.set_password("review-pass")
+        user.save()
 
         item, created = WorkItem.objects.get_or_create(
             title="Review the autonomous delivery evidence",

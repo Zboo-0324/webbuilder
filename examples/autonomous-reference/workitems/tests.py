@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
@@ -47,4 +48,28 @@ class WorkItemFlowTests(TestCase):
             response,
             f'href="{logout_url}"',
             msg_prefix="Logout must not be a GET link",
+        )
+
+
+class SeedReviewerPasswordTests(TestCase):
+    """Regression: seed_reference must guarantee the reviewer password.
+
+    If the reviewer user already exists with a stale password, re-running
+    seed_reference must still leave the correct password in place.
+    """
+
+    def test_seed_overwrites_pre_existing_reviewer_password(self) -> None:
+        User = get_user_model()
+        # Create the reviewer with a deliberately wrong password.
+        User.objects.create_user("reviewer", password="stale-password")
+
+        call_command("seed_reference")
+
+        reviewers = User.objects.filter(username="reviewer")
+        self.assertEqual(reviewers.count(), 1, "Expected exactly one reviewer user")
+        reviewer = reviewers.get()
+        self.assertTrue(
+            reviewer.check_password("review-pass"),
+            "seed_reference must ensure the reviewer password is 'review-pass', "
+            "even when the user already existed with a different password",
         )
