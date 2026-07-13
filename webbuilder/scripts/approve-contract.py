@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from contract_core import (
+    _check_approval_revision,
     contract_digest,
-    contract_revision_errors,
     extract_contract_material,
     validate_capabilities,
+    validate_workload_envelope,
 )
 from state_schema import resolve_state_dir, set_top_level_value, top_level_value
 from state_transition import apply_transaction
@@ -27,11 +28,18 @@ def approve_contract(target: Path, evidence: str) -> int:
 
     material = extract_contract_material(requirements_text)
 
-    cap_errors = validate_capabilities(material.get("capabilities", {}))
+    cap_errors = validate_capabilities(
+        material.get("capabilities", {}),
+        delivery_assumptions=material.get("delivery_assumptions"),
+    )
     if cap_errors:
         raise ValueError("invalid capabilities: " + "; ".join(cap_errors))
 
-    revision_errors = contract_revision_errors(requirements_text, material)
+    wl_errors = validate_workload_envelope(material.get("workload_envelope", {}))
+    if wl_errors:
+        raise ValueError("invalid workload envelope: " + "; ".join(wl_errors))
+
+    revision_errors = _check_approval_revision(requirements_text, material)
     if revision_errors:
         raise ValueError("contract revision errors: " + "; ".join(revision_errors))
 

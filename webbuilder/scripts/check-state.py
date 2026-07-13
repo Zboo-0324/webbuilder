@@ -9,6 +9,7 @@ import re
 from itertools import combinations
 from pathlib import Path
 
+from contract_core import contract_revision_errors, extract_contract_material
 from state_schema import (
     REQUIRED_FILES,
     SCHEMA_VERSION,
@@ -535,8 +536,36 @@ def check_structure(state_dir: Path) -> list[str]:
     return errors
 
 
+def check_specification_readiness(state_dir: Path) -> list[str]:
+    errors: list[str] = []
+    errors.extend(contract_revision_errors(state_dir))
+
+    requirements_text = read_text(state_dir, "requirements-baseline.md")
+    if not requirements_text:
+        return errors
+
+    try:
+        material = extract_contract_material(requirements_text)
+    except ValueError:
+        return errors
+
+    if re.search(r"(?mi)^- not recorded\s*$", requirements_text):
+        errors.append("requirements-baseline.md contains '- not recorded'")
+
+    workflows = material.get("primary_workflows", [])
+    if not workflows or not all(str(w).strip() for w in workflows):
+        errors.append("primary_workflows must be nonempty")
+
+    signals = material.get("acceptance_signals", [])
+    if not signals or not all(str(s).strip() for s in signals):
+        errors.append("acceptance_signals must be nonempty")
+
+    return errors
+
+
 def check_execution_readiness(state_dir: Path, loop_status: str) -> list[str]:
     errors: list[str] = []
+    errors.extend(contract_revision_errors(state_dir))
 
     for filename, expected in EXECUTION_STATUSES.items():
         actual = top_level_value(read_text(state_dir, filename), "status")
@@ -1094,7 +1123,9 @@ def check_state(
         return [f"missing state directory: {state_dir}"]
 
     errors = check_structure(state_dir)
-    if phase == "execution":
+    if phase == "specification":
+        errors.extend(check_specification_readiness(state_dir))
+    elif phase == "execution":
         errors.extend(check_execution_readiness(state_dir, loop_status="active"))
     elif phase == "task":
         errors.extend(check_task_readiness(state_dir, task_id))
@@ -1122,6 +1153,7 @@ def main() -> int:
         "--phase",
         choices=(
             "structure",
+            "specification",
             "execution",
             "task",
             "parallel",
@@ -1131,8 +1163,9 @@ def main() -> int:
         ),
         default="structure",
         help=(
-            "Validation depth: structure checks files and contracts; execution "
-            "requires confirmed baselines; task and parallel validate dispatch; "
+            "Validation depth: structure checks files and contracts; specification "
+            "validates contract completeness and revision; execution requires "
+            "confirmed baselines; task and parallel validate dispatch; "
             "acceptance and integration validate per-task evidence; delivery requires "
             "terminal state and evidence closure."
         ),
