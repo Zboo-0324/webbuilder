@@ -215,6 +215,27 @@ CONTRACT_TO_HOST_CAPABILITY: dict[str, str] = {
 }
 
 _DELIVERY_CORE_DOMAINS = ("functional", "security", "performance", "delivery-smoke")
+_DELIVERY_UI_DOMAINS = ("ui", "accessibility")
+
+
+def _delivery_applicable_domains(state_dir: Path) -> list[str]:
+    """Core delivery domains plus UI/accessibility when the contract requires UI."""
+    domains = list(_DELIVERY_CORE_DOMAINS)
+    requirements_text = read_text(state_dir, "requirements-baseline.md")
+    if not requirements_text:
+        return domains
+    try:
+        material = extract_contract_material(requirements_text)
+    except ValueError:
+        return domains
+    capabilities = material.get("capabilities", {})
+    if not isinstance(capabilities, dict):
+        return domains
+    ui_cap = capabilities.get("ui")
+    if isinstance(ui_cap, dict) and ui_cap.get("status") == "required":
+        domains.extend(_DELIVERY_UI_DOMAINS)
+    return domains
+
 
 def read_text(state_dir: Path, filename: str) -> str:
     path = state_dir / filename
@@ -1132,10 +1153,52 @@ def check_delivery_readiness(state_dir: Path) -> list[str]:
     if any(fragment in lowered_report for fragment in DELIVERY_PLACEHOLDERS):
         errors.append("delivery-report.md contains placeholder content")
 
-    for domain in _DELIVERY_CORE_DOMAINS:
+    # Verify evidence manifests for applicable delivery domains.
+    requirements_text = read_text(state_dir, "requirements-baseline.md")
+    contract_rev = None
+    if requirements_text:
+        contract_rev = integer_value(requirements_text, "approved_contract_revision")
+        if contract_rev is None:
+            contract_rev = integer_value(requirements_text, "contract_revision")
+
+    project_root = state_dir.parent
+    current_fingerprint = None
+    if (project_root / ".git").exists():
+        try:
+            current_fingerprint = git_fingerprint(project_root)
+        except Exception:
+            pass
+    else:
+        all_paths: list[str] = []
+        for _, body in TASK_SECTION_PATTERN.findall(task_plan):
+            all_paths.extend(task_list_values(body, "allowed_paths"))
+        if all_paths:
+            current_fingerprint = direct_apply_fingerprint(project_root, all_paths)
+
+    for domain in _delivery_applicable_domains(state_dir):
         record = validation_record(validation_log, "PROJECT", domain)
         if record is None or not recorded_value(record_value(record, "artifact_manifest")):
             errors.append(f"missing artifact_manifest: PROJECT / {domain}")
+            continue
+        if contract_rev is None or current_fingerprint is None:
+            errors.append(
+                f"cannot verify manifest: PROJECT / {domain}: "
+                f"missing contract revision or implementation fingerprint"
+            )
+            continue
+        manifest_rel = record_value(record, "artifact_manifest")
+        manifest_path = project_root / manifest_rel
+        if not manifest_path.is_file():
+            errors.append(f"manifest file missing: PROJECT / {domain}")
+            continue
+        verify_errs = verify_manifest(
+            manifest_path,
+            project_root=project_root,
+            expected_contract_revision=contract_rev,
+            expected_fingerprint=current_fingerprint,
+        )
+        for verr in verify_errs:
+            errors.append(f"PROJECT / {domain}: {verr}")
 
     return errors
 

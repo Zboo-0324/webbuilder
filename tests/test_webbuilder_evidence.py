@@ -718,7 +718,59 @@ class EvidenceGateTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def _make_delivery_ready(self) -> None:
+    _DELIVERY_CORE_DOMAINS = ("functional", "security", "performance", "delivery-smoke")
+    _DELIVERY_UI_DOMAINS = ("ui", "accessibility")
+
+    def _applicable_delivery_domains(self, contract: dict) -> list[str]:
+        """Core four plus ui/accessibility when the contract marks UI as required."""
+        domains = list(self._DELIVERY_CORE_DOMAINS)
+        caps = contract.get("capabilities", {})
+        if isinstance(caps, dict):
+            ui_cap = caps.get("ui")
+            if isinstance(ui_cap, dict) and ui_cap.get("status") == "required":
+                domains.extend(self._DELIVERY_UI_DOMAINS)
+        return domains
+
+    def _append_validation_entries(self, entries: str) -> None:
+        """Append validation entries to the existing validation log."""
+        path = self.state_dir / "validation-log.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.rstrip() + "\n\n" + entries + "\n", encoding="utf-8")
+
+    def _write_domain_manifests(
+        self, contract: dict, domains: list[str] | None = None,
+    ) -> dict[str, Path]:
+        """Capture evidence manifests and write PROJECT/<domain> validation-log entries."""
+        if domains is None:
+            domains = self._applicable_delivery_domains(contract)
+        src = self.target / "src" / "app.py"
+        src.parent.mkdir(parents=True, exist_ok=True)
+        if not src.exists():
+            src.write_text("# app\n", encoding="utf-8")
+
+        manifests: dict[str, Path] = {}
+        entries: list[str] = []
+        for domain in domains:
+            manifest_path = capture_command_evidence(
+                self.target,
+                [sys.executable, "-c", "print('ok')"],
+                run_id="DELIVERY",
+                subject_id=domain,
+                attempt=1,
+                contract_revision=1,
+                allowed_paths=["src/app.py"],
+            )
+            rel_path = manifest_path.relative_to(self.target).as_posix()
+            manifests[domain] = manifest_path
+            entries.append(
+                f"### PROJECT / {domain}\n\n"
+                f"- gate: {domain}\n"
+                f"- artifact_manifest: {rel_path}\n"
+            )
+        self._append_validation_entries("\n".join(entries))
+        return manifests
+
+    def _make_delivery_ready(self, *, contract: dict | None = None, create_manifests: bool = True) -> None:
         self._set_task_status("complete")
         self._write_loop_state(status="delivered", current_phase="delivery")
         self._write_validation_log(
@@ -745,6 +797,8 @@ class EvidenceGateTests(unittest.TestCase):
             "## Not Completed\n\n- None.\n",
             encoding="utf-8",
         )
+        if create_manifests:
+            self._write_domain_manifests(contract or self.UI_CONTRACT)
 
     def test_ui_required_contract_plus_browser_unavailable_fails_host_phase(self) -> None:
         self._write_contract(self.UI_CONTRACT)
@@ -827,28 +881,89 @@ class EvidenceGateTests(unittest.TestCase):
     def test_handwritten_passed_delivery_text_without_manifest_fails(self) -> None:
         self._write_contract(self.UI_CONTRACT)
         self._make_execution_ready()
-        self._make_delivery_ready()
+        self._make_delivery_ready(create_manifests=False)
 
         result = self._run_check("delivery")
 
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("manifest", (result.stdout + result.stderr).lower())
 
-    def test_api_only_justified_not_applicable_still_needs_evidence_manifests(self) -> None:
+    def test_api_only_delivery_passes_without_ui_accessibility_manifests(self) -> None:
         self._write_contract(self.API_CONTRACT)
         self._make_execution_ready()
-        self._make_delivery_ready()
+        self._make_delivery_ready(contract=self.API_CONTRACT)
+
+        result = self._run_check("delivery")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_delivery_passes_with_valid_evidence_manifests(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready(contract=self.UI_CONTRACT)
+
+        result = self._run_check("delivery")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_delivery_rejects_stale_contract_revision_manifest(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready(contract=self.UI_CONTRACT)
+
+        # Tamper one manifest's contract_revision.
+        manifest_path = self.target / ".webbuilder-artifacts" / "DELIVERY" / "functional" / "1" / "manifest.json"
+        manifest = load_manifest(manifest_path)
+        manifest["contract_revision"] = 999
+        write_manifest(manifest_path, manifest, project_root=self.target)
+
+        result = self._run_check("delivery")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("contract revision", (result.stdout + result.stderr).lower())
+
+    def test_delivery_rejects_tampered_evidence_manifest(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready(contract=self.UI_CONTRACT)
+
+        # Tamper the artifact file so its hash no longer matches the manifest.
+        output_file = self.target / ".webbuilder-artifacts" / "DELIVERY" / "functional" / "1" / "command-output.txt"
+        output_file.write_text("tampered content\n", encoding="utf-8")
+
+        result = self._run_check("delivery")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("hash mismatch", (result.stdout + result.stderr).lower())
+
+    def test_delivery_rejects_missing_manifest_file(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready(contract=self.UI_CONTRACT)
+
+        # Delete one manifest file while keeping the validation-log reference.
+        manifest_path = self.target / ".webbuilder-artifacts" / "DELIVERY" / "functional" / "1" / "manifest.json"
+        manifest_path.unlink()
+
+        result = self._run_check("delivery")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("manifest", (result.stdout + result.stderr).lower())
+
+    def test_ui_required_delivery_needs_ui_accessibility_manifests(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready(create_manifests=False)
+        # Create manifests for only the core four domains — omit ui/accessibility.
+        self._write_domain_manifests(self.UI_CONTRACT, domains=list(self._DELIVERY_CORE_DOMAINS))
 
         result = self._run_check("delivery")
 
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         combined = result.stdout + result.stderr
         self.assertTrue(
-            any(
-                domain in combined.lower()
-                for domain in ("functional", "security", "performance", "delivery-smoke")
-            ),
-            f"expected at least one missing domain error in: {combined}",
+            any(f"PROJECT / {d}" in combined for d in ("ui", "accessibility")),
+            f"expected ui/accessibility domain error in: {combined}",
         )
 
 
