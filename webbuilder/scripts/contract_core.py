@@ -205,7 +205,9 @@ def contract_revision_errors(state_dir: Path) -> list[str]:
     if design_path.exists():
         design_text = design_path.read_text(encoding="utf-8")
         design_rev = top_level_value(design_text, "based_on_contract_revision")
-        if design_rev and design_rev != current_rev:
+        if design_rev is None:
+            errors.append("system-design.md missing based_on_contract_revision")
+        elif design_rev != current_rev:
             errors.append(
                 f"system-design.md based_on_contract_revision ({design_rev}) "
                 f"does not match contract_revision ({current_rev})"
@@ -214,7 +216,9 @@ def contract_revision_errors(state_dir: Path) -> list[str]:
     if plan_path.exists():
         plan_text = plan_path.read_text(encoding="utf-8")
         plan_rev = top_level_value(plan_text, "based_on_contract_revision")
-        if plan_rev and plan_rev != current_rev:
+        if plan_rev is None:
+            errors.append("task-plan.md missing based_on_contract_revision")
+        elif plan_rev != current_rev:
             errors.append(
                 f"task-plan.md based_on_contract_revision ({plan_rev}) "
                 f"does not match contract_revision ({current_rev})"

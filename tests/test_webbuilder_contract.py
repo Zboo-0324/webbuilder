@@ -724,6 +724,24 @@ class ContractStateRevisionTests(unittest.TestCase):
         errors = contract_revision_errors(self.state_dir)
         self.assertTrue(any("task-plan.md" in e for e in errors))
 
+    def test_state_revision_errors_missing_design_revision(self) -> None:
+        design_path = self.state_dir / "system-design.md"
+        design_path.write_text("# System Design\n", encoding="utf-8")
+        errors = contract_revision_errors(self.state_dir)
+        self.assertTrue(
+            any("system-design.md missing based_on_contract_revision" in e for e in errors),
+            errors,
+        )
+
+    def test_state_revision_errors_missing_plan_revision(self) -> None:
+        plan_path = self.state_dir / "task-plan.md"
+        plan_path.write_text("# Task Plan\n", encoding="utf-8")
+        errors = contract_revision_errors(self.state_dir)
+        self.assertTrue(
+            any("task-plan.md missing based_on_contract_revision" in e for e in errors),
+            errors,
+        )
+
     def test_contract_revision_errors_excludes_capability_and_workload(self) -> None:
         """contract_revision_errors reports only revision/digest/staleness, not material completeness."""
         errors = contract_revision_errors(self.state_dir)
