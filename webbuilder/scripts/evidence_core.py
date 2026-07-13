@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import platform
 import re
+import secrets
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
@@ -68,3 +70,83 @@ def git_fingerprint(project_root: Path) -> str:
     ).stdout
     payload = json.dumps({"head": head, "status": status}, sort_keys=True).encode("utf-8")
     return sha256_bytes(payload)
+
+
+def build_command_manifest(
+    *,
+    project_root: Path,
+    command: list[str],
+    run_id: str,
+    subject_id: str,
+    attempt: int,
+    contract_revision: int,
+    fingerprint: str,
+    exit_code: int,
+    output_path: Path,
+    replacements: int,
+) -> dict[str, object]:
+    relative_output = output_path.relative_to(project_root).as_posix()
+    return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "record_id": f"EV-{secrets.token_hex(8)}",
+        "run_id": run_id,
+        "subject_id": subject_id,
+        "attempt": attempt,
+        "contract_revision": contract_revision,
+        "implementation_fingerprint": fingerprint,
+        "command": command,
+        "cwd": ".",
+        "exit_code": exit_code,
+        "tool_versions": {"python": platform.python_version()},
+        "artifacts": [{
+            "path": relative_output,
+            "sha256": sha256_bytes(output_path.read_bytes()),
+            "media_type": "text/plain",
+            "size": output_path.stat().st_size,
+        }],
+        "redaction": {"status": "passed", "replacements": replacements},
+        "result": "passed" if exit_code == 0 else "failed",
+        "supersedes_record_id": None,
+    }
+
+
+def capture_command_evidence(
+    project_root: Path,
+    command: list[str],
+    *,
+    run_id: str,
+    subject_id: str,
+    attempt: int,
+    contract_revision: int,
+    allowed_paths: list[str],
+    explicit_secrets: Iterable[str] = (),
+) -> Path:
+    if not command:
+        raise ValueError("evidence command must not be empty")
+    artifact_root = project_root / ".webbuilder-artifacts"
+    artifact_root.mkdir(exist_ok=True)
+    ignore_file = artifact_root / ".gitignore"
+    if not ignore_file.exists():
+        ignore_file.write_text("*\n!.gitignore\n", encoding="utf-8", newline="\n")
+    attempt_dir = artifact_root / run_id / subject_id / str(attempt)
+    attempt_dir.mkdir(parents=True, exist_ok=False)
+    completed = subprocess.run(command, cwd=project_root, text=True, capture_output=True, check=False)
+    output, replacements = redact_text(completed.stdout + completed.stderr, explicit_secrets)
+    output_path = attempt_dir / "command-output.txt"
+    output_path.write_text(output, encoding="utf-8", newline="\n")
+    fingerprint = git_fingerprint(project_root) if (project_root / ".git").exists() else direct_apply_fingerprint(project_root, allowed_paths)
+    manifest = build_command_manifest(
+        project_root=project_root,
+        command=command,
+        run_id=run_id,
+        subject_id=subject_id,
+        attempt=attempt,
+        contract_revision=contract_revision,
+        fingerprint=fingerprint,
+        exit_code=completed.returncode,
+        output_path=output_path,
+        replacements=replacements,
+    )
+    manifest_path = attempt_dir / "manifest.json"
+    write_manifest(manifest_path, manifest, project_root=project_root)
+    return manifest_path

@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from evidence_core import (  # noqa: E402
     MANIFEST_SCHEMA_VERSION,
+    capture_command_evidence,
     git_fingerprint,
     load_manifest,
     redact_text,
@@ -83,6 +84,44 @@ class EvidenceCoreTests(unittest.TestCase):
             (root / "a.txt").write_text("two\n", encoding="utf-8")
             dirty = git_fingerprint(root)
             self.assertNotEqual(clean, dirty)
+
+
+class CommandCaptureTests(unittest.TestCase):
+    def test_failed_command_records_output_and_failed_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "src.txt"
+            source.write_text("tracked\n", encoding="utf-8")
+            path = capture_command_evidence(
+                root,
+                [sys.executable, "-c", "import sys; print('boom'); sys.exit(7)"],
+                run_id="RUN-1",
+                subject_id="TASK-001",
+                attempt=1,
+                contract_revision=1,
+                allowed_paths=["src.txt"],
+            )
+            manifest = load_manifest(path)
+            self.assertEqual(manifest["exit_code"], 7)
+            self.assertEqual(manifest["result"], "failed")
+            output = path.with_name("command-output.txt").read_text(encoding="utf-8")
+            self.assertIn("boom", output)
+
+    def test_capture_redacts_explicit_secret(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src.txt").write_text("tracked\n", encoding="utf-8")
+            path = capture_command_evidence(
+                root,
+                [sys.executable, "-c", "print('token-value')"],
+                run_id="RUN-1",
+                subject_id="PROJECT",
+                attempt=1,
+                contract_revision=1,
+                allowed_paths=["src.txt"],
+                explicit_secrets=["token-value"],
+            )
+            self.assertNotIn("token-value", path.with_name("command-output.txt").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
