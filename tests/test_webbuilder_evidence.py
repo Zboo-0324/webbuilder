@@ -54,6 +54,22 @@ class EvidenceCoreTests(unittest.TestCase):
             self.assertEqual(load_manifest(path), manifest)
             self.assertNotIn(str(root), path.read_text(encoding="utf-8"))
 
+    def test_git_fingerprint_uses_canonical_sha256_prefix_format(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "a.txt").write_text("one\n", encoding="utf-8")
+            subprocess.run(["git", "add", "a.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=root, check=True, capture_output=True)
+            fp = git_fingerprint(root)
+            self.assertTrue(
+                fp.startswith("sha256:"),
+                f"fingerprint should start with 'sha256:' but got: {fp[:20]}...",
+            )
+            self.assertEqual(len(fp), len("sha256:") + 64)
+
     def test_git_fingerprint_includes_commit_and_dirty_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

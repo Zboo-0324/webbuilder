@@ -1,7 +1,6 @@
 """Evidence manifest persistence, secret redaction, and implementation fingerprints."""
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import subprocess
@@ -68,4 +67,4 @@ def git_fingerprint(project_root: Path) -> str:
         check=True,
     ).stdout
     payload = json.dumps({"head": head, "status": status}, sort_keys=True).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+    return sha256_bytes(payload)
