@@ -504,6 +504,7 @@ Run the bundled checker from the installed or project-local Skill directory:
 
 ```text
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
+python <skill-root>/scripts/check-state.py --target <project-root> --phase specification
 python <skill-root>/scripts/check-state.py --target <project-root> --phase execution
 python <skill-root>/scripts/check-state.py --target <project-root> --phase task --task <TASK-ID>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase parallel --parallel-group <PG-ID>
@@ -512,7 +513,15 @@ python <skill-root>/scripts/check-state.py --target <project-root> --phase integ
 python <skill-root>/scripts/check-state.py --target <project-root> --phase delivery
 ```
 
+Approve or invalidate the contract:
+
+```text
+python <skill-root>/scripts/approve-contract.py --target <project-root> --approval-evidence <user-message-reference>
+python <skill-root>/scripts/approve-contract.py --target <project-root> --invalidate-material-change
+```
+
 - `structure` checks schema, required files, workflow markers, orchestration metadata, design sections, task contracts, and allowed status values.
+- `specification` validates complete contract material with no `not recorded` values, non-empty acceptance signals and primary workflows, and that system design and task plan reference the current contract revision. Before approval it allows `confirmation_status: pending`; during execution readiness it requires `approved` with matching revision and digest.
 - `execution` additionally requires confirmed or ready baselines, no placeholder content, and an active workflow.
 - `task` additionally checks the selected task, dependencies, execution mode, task-owned checker strategy, handoff, workspace, repair budget, and current-task state.
 - `parallel` additionally checks host capacity, group size, dependencies, unique worktrees, path overlap, Shared Contract Paths, declared shared resources, conflict domains, integration dependencies, and checker independence.

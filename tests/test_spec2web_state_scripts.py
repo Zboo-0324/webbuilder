@@ -1761,6 +1761,29 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             ["1.4"],
         )
 
+    def test_skill_routes_guided_and_autonomous_discovery_through_contract_gate(self) -> None:
+        text = SKILL_FILE.read_text(encoding="utf-8")
+
+        self.assertIn("delivery_mode: guided | autonomous", text)
+        self.assertIn("discovery_method: interactive | inferred_contract", text)
+        self.assertIn("scripts/approve-contract.py", text)
+        self.assertIn("--phase specification", text)
+        self.assertIn("workload envelope", text.lower())
+        self.assertIn("declared stop condition", text.lower())
+
+    def test_state_files_reference_documents_specification_phase(self) -> None:
+        text = STATE_FILES_REFERENCE.read_text(encoding="utf-8")
+
+        self.assertIn("specification", text)
+        self.assertIn("scripts/approve-contract.py", text)
+
+    def test_readmes_document_contract_gate(self) -> None:
+        for readme_path in (ROOT / "README.md", ROOT / "README_EN.md"):
+            with self.subTest(path=readme_path):
+                text = readme_path.read_text(encoding="utf-8")
+                self.assertIn("approve-contract.py", text)
+                self.assertIn("--phase specification", text)
+
 
 if __name__ == "__main__":
     unittest.main()

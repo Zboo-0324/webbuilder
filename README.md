@@ -73,6 +73,8 @@ webbuilder/
     check-state.py
     migrate-state.py
     transition-state.py
+    approve-contract.py
+    contract_core.py
 ```
 
 ## 安装
@@ -193,6 +195,13 @@ python webbuilder/scripts/check-state.py --target . --phase structure
 python webbuilder/scripts/check-state.py --target . --phase execution
 ```
 
+合约就绪检查和审批（`--phase specification` 验证合约材料完整性、`approve-contract.py` 执行审批）：
+
+```powershell
+python webbuilder/scripts/check-state.py --target . --phase specification
+python webbuilder/scripts/approve-contract.py --target . --approval-evidence user-message-42
+```
+
 恢复工作流前，先恢复可能中断的 State Kernel 事务并重新检查结构：
 
 ```powershell
@@ -206,9 +215,10 @@ python webbuilder/scripts/check-state.py --target . --phase structure
 python webbuilder/scripts/check-state.py --target . --phase delivery
 ```
 
-检查脚本提供七个阶段：
+检查脚本提供八个阶段：
 
 - `structure`：schema、必要文件、智能体编排元数据、设计章节、任务契约和状态取值
+- `specification`：完整合约材料、无 `not recorded` 值、非空验收信号和工作流、系统设计与任务计划引用当前合约修订
 - `execution`：已确认需求、已就绪的规则/设计/任务基线、无占位内容和 active 工作流
 - `task`：选定任务、依赖、任务级审核策略、执行模式、交接方式、工作区和当前任务状态
 - `parallel`：宿主容量、批次大小、独立 worktree、路径与声明式语义冲突、每任务审核策略

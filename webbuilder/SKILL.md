@@ -205,6 +205,59 @@ Do not repeat facts already clear from the user's document. Do not ask broad exp
 
 Use the host's structured question UI when available. Otherwise ask conversationally and wait. Record the AI working hypothesis, questions asked, and user decisions under `User Discovery`. Set `discovery_status: confirmed` only after the user approves the summarized requirements; do not silently skip the gate.
 
+## Discovery Modes
+
+`loop-state.md` records `delivery_mode: guided | autonomous`. `requirements-baseline.md` records `discovery_method: interactive | inferred_contract`.
+
+**Guided discovery** (default for new and existing projects) keeps the one-question-at-a-time dialogue described above and sets `discovery_method: interactive` in `requirements-baseline.md` when the user confirms requirements.
+
+**Autonomous discovery** drafts the same requirements, system design, and task plan artifacts internally without per-question dialogue. It sets `discovery_method: inferred_contract`, runs the specification phase readiness check, presents one consolidated contract to the user, and waits for approval before proceeding.
+
+Existing and migrated projects remain in guided mode until the user explicitly selects autonomous.
+
+Both modes end with the same specification gate and contract approval commands:
+
+```text
+python <skill-root>/scripts/check-state.py --target <project-root> --phase specification
+python <skill-root>/scripts/approve-contract.py --target <project-root> --approval-evidence <user-message-reference>
+```
+
+The `--phase specification` gate validates complete contract material, no remaining `not recorded` values, non-empty acceptance signals and primary workflows, and that system design and task plan reference the current contract revision. Before approval the gate allows `confirmation_status: pending`; during execution readiness it requires `approved` with matching revision and digest.
+
+### Material and Non-Material Contract Changes
+
+The following contract fields are **material** and invalidate approval when changed:
+
+`problem`, `desired_outcome`, `target_users`, `primary_jobs`, `core_capabilities`, `non_goals`, `primary_workflows`, `page_navigation_summary`, `ui_direction`, `technology_profile`, `public_interfaces`, `data_boundary`, `permission_boundary`, `delivery_assumptions`, `material_risks`, `acceptance_signals`, `capabilities`, `workload_envelope`.
+
+The following are **non-material** unless they change one of the fields above:
+
+- low-risk dependency selection,
+- component details within the chosen technology profile,
+- task reordering within the same scope,
+- test repair and minor verification adjustments,
+- bounded implementation choices within approved architecture.
+
+### Authorization Boundaries
+
+The contract does **not** authorize:
+
+- credentials or secrets,
+- paid resources or services,
+- production deployment,
+- destructive external writes,
+- irreversible migration,
+- high-risk install scripts,
+- secret transmission.
+
+If execution requires any of the above, stop and ask the user.
+
+### Workload Envelope and Declared Stop Condition
+
+The `workload_envelope` block in the contract material records the estimated scope: task count range, browser flows, external dependencies, quality gates, repair budgets (`task: 3`, `integration: 5`), and available concurrency. It does not include token counts, API call estimates, elapsed time estimates, or interruption counts.
+
+A **declared stop condition** is an explicit reason the Orchestrator must pause and ask the user before continuing. Examples: requirements are unclear, a design change is needed, repair budget is exhausted, credentials or paid resources are required, or no ready task exists. The stop reason is recorded in `loop-state.md` via `stop_reason` and resolved by the user before the workflow resumes.
+
 ## First-Principles and Review
 
 Before design or task dispatch, distinguish verified facts and constraints from assumptions, record the evidence for important assumptions, and state which unknowns block safe implementation. Treat roles as explicit evaluation standards, not persona prompts.

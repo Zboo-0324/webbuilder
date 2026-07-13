@@ -73,6 +73,8 @@ webbuilder/
     check-state.py
     migrate-state.py
     transition-state.py
+    approve-contract.py
+    contract_core.py
 ```
 
 ## Install
@@ -193,6 +195,13 @@ Before application-code tasks, run the execution gate:
 python webbuilder/scripts/check-state.py --target . --phase execution
 ```
 
+Contract readiness and approval (`--phase specification` validates contract material, `approve-contract.py` applies approval):
+
+```powershell
+python webbuilder/scripts/check-state.py --target . --phase specification
+python webbuilder/scripts/approve-contract.py --target . --approval-evidence user-message-42
+```
+
 Before every resume, recover any interrupted State Kernel transition and re-check structure:
 
 ```powershell
@@ -206,9 +215,10 @@ Before final delivery, run the delivery gate:
 python webbuilder/scripts/check-state.py --target . --phase delivery
 ```
 
-The checker has seven validation phases:
+The checker has eight validation phases:
 
 - `structure`: schema, required files, agent-orchestration metadata, design sections, task contracts, and valid status values
+- `specification`: complete contract material with no `not recorded` values, non-empty acceptance signals and primary workflows, and derived documents referencing the current contract revision
 - `execution`: confirmed requirements, ready project/design/task baselines, no placeholders, and an active workflow
 - `task`: selected task, dependency, task-owned checker strategy, execution-mode, handoff, workspace, and current-task readiness
 - `parallel`: host capacity, group size, unique worktrees, path and declared semantic conflicts, and per-task checker strategies

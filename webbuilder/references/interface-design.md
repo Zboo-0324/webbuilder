@@ -71,6 +71,7 @@ Write this section into `webbuilder/system-design.md` before frontend task break
 - Define states that tests or manual verification can observe.
 - Record major visual assumptions before implementation.
 - If a design choice changes scope or brand direction, ask the user before building.
+- Interface decisions that change `ui_direction`, `page_navigation_summary`, or `primary_workflows` in the contract material are material changes and invalidate contract approval.
 
 ## Task Breakdown Impact
 

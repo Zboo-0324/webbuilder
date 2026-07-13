@@ -78,3 +78,6 @@ Stop and ask the user when:
 - credentials or production resources are required
 - requirements conflict with the existing stack
 - the best option depends on business constraints the user has not stated
+- the technology choice would invalidate approved contract material
+
+The solution contract does not authorize credentials, paid resources, production deployment, destructive external writes, irreversible migration, high-risk install scripts, or secret transmission. If a technology decision requires any of these, stop and ask before proceeding.
