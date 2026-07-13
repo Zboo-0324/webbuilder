@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -510,6 +511,345 @@ class EvidenceVerificationTests(unittest.TestCase):
 
                 with self.assertRaises(ValueError):
                     promote_artifacts(manifest_path, main)
+
+
+class EvidenceGateTests(unittest.TestCase):
+    """RED-phase tests: host, initialization, and UI phases do not exist yet,
+    and delivery does not verify evidence manifests."""
+
+    CHECK_SCRIPT = SCRIPTS / "check-state.py"
+    INIT_SCRIPT = SCRIPTS / "init-state.py"
+
+    UI_CONTRACT = {
+        "problem": "Build a task management UI",
+        "desired_outcome": "Users manage tasks in a browser",
+        "target_users": ["project managers"],
+        "primary_jobs": ["create tasks", "track tasks"],
+        "core_capabilities": ["task CRUD", "status tracking"],
+        "non_goals": ["billing"],
+        "primary_workflows": ["create task -> assign -> complete"],
+        "page_navigation_summary": "Dashboard and task detail",
+        "ui_direction": "compact operational UI",
+        "technology_profile": "react-18 + typescript + vite",
+        "public_interfaces": ["GET /api/tasks", "POST /api/tasks"],
+        "data_boundary": "user-scoped task data",
+        "permission_boundary": "authenticated users only",
+        "delivery_assumptions": ["cloud deployment", "database migration"],
+        "material_risks": ["data migration complexity"],
+        "acceptance_signals": ["task CRUD works end-to-end"],
+        "capabilities": {
+            "ui": {"status": "required", "reason": "browser workflow"},
+            "database": {"status": "required", "reason": "task data persists"},
+            "authentication": {"status": "required", "reason": "authenticated users"},
+            "rbac": {"status": "not_applicable", "reason": "single role MVP"},
+            "audit": {"status": "not_applicable", "reason": "outside MVP scope"},
+            "docker": {"status": "not_applicable", "reason": "local dev startup"},
+            "accessibility": {"status": "required", "reason": "UI is required"},
+            "performance": {"status": "required", "profile": "baseline"},
+            "security": {"status": "required", "profile": "baseline"},
+        },
+        "workload_envelope": {
+            "task_count": "4-6",
+            "browser_flows": ["task creation"],
+            "external_dependencies": [],
+            "quality_gates": ["unit tests"],
+            "repair_budgets": {"task": 3, "integration": 5},
+            "available_concurrency": "single",
+        },
+    }
+
+    API_CONTRACT = {
+        "problem": "Build a REST API",
+        "desired_outcome": "API serves JSON responses",
+        "target_users": ["developers"],
+        "primary_jobs": ["list items", "get item"],
+        "core_capabilities": ["item list", "item detail"],
+        "non_goals": ["UI", "billing"],
+        "primary_workflows": ["GET /items", "GET /items/:id"],
+        "page_navigation_summary": "not applicable — API only",
+        "ui_direction": "not applicable — API only",
+        "technology_profile": "fastapi + python 3.12",
+        "public_interfaces": ["GET /items", "GET /items/:id"],
+        "data_boundary": "public item data",
+        "permission_boundary": "unauthenticated reads",
+        "delivery_assumptions": ["local startup"],
+        "material_risks": ["none"],
+        "acceptance_signals": ["GET /items returns 200 with JSON"],
+        "capabilities": {
+            "ui": {"status": "not_applicable", "reason": "API only"},
+            "database": {"status": "not_applicable", "reason": "in-memory store"},
+            "authentication": {"status": "not_applicable", "reason": "public read-only API"},
+            "rbac": {"status": "not_applicable", "reason": "no write operations"},
+            "audit": {"status": "not_applicable", "reason": "public data"},
+            "docker": {"status": "not_applicable", "reason": "local dev startup"},
+            "accessibility": {"status": "not_applicable", "reason": "no UI"},
+            "performance": {"status": "required", "profile": "baseline"},
+            "security": {"status": "required", "profile": "baseline"},
+        },
+        "workload_envelope": {
+            "task_count": "2-3",
+            "browser_flows": [],
+            "external_dependencies": [],
+            "quality_gates": ["unit tests"],
+            "repair_budgets": {"task": 3, "integration": 5},
+            "available_concurrency": "single",
+        },
+    }
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+        self.target = Path(self.tmp)
+        self.state_dir = self.target / "webbuilder"
+        result = subprocess.run(
+            [sys.executable, str(self.INIT_SCRIPT), "--target", str(self.target)],
+            text=True, capture_output=True, check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run_check(self, phase: str, **extra: str) -> subprocess.CompletedProcess:
+        cmd = [
+            sys.executable, str(self.CHECK_SCRIPT),
+            "--target", str(self.target), "--phase", phase,
+        ]
+        for key, value in extra.items():
+            cmd.extend([f"--{key.replace('_', '-')}", str(value)])
+        return subprocess.run(cmd, text=True, capture_output=True, check=False)
+
+    def _write_contract(self, material: dict) -> None:
+        contract_json = json.dumps(material, ensure_ascii=False, indent=2)
+        requirements = (
+            "# Requirements Baseline\n\n## Status\n\n"
+            "status: confirmed\nconfirmation_status: approved\n"
+            "contract_revision: 1\napproved_contract_revision: 1\n"
+            "approval_digest: null\napproval_scope: requirements_design_stack_ui_execution\n"
+            "approval_evidence: user-message-42\napproved_by: user\n"
+            "approved_at: 2026-07-13\ndiscovery_method: inferred_contract\n\n"
+            "## User Discovery\n\ndiscovery_status: confirmed\n\n"
+            "### AI Working Hypothesis\n\n- Users need a task management system\n\n"
+            "### Questions Asked\n\n- What is the primary use case?\n\n"
+            "### User Decisions\n\n- Use React for frontend\n\n"
+            "## Solution Contract\n\n```json contract-material\n"
+            f"{contract_json}\n```\n\n"
+            "## First-Principles Analysis\n\n"
+            "### Core Outcome\n\n- Users can manage tasks efficiently\n\n"
+            "### Hard Constraints and Invariants\n\n- Data must persist across sessions\n\n"
+            "### Assumptions and Evidence\n\n- Users have modern browsers\n\n"
+            "## Open Questions\n\n- None.\n\n"
+            "## Confirmed Requirements\n\n"
+            "| ID | Requirement | Priority | Acceptance Signal |\n"
+            "|---|---|---|---|\n"
+            "| REQ-001 | Task CRUD operations | Must | Create, read, update, delete tasks |\n"
+        )
+        (self.state_dir / "requirements-baseline.md").write_text(
+            requirements, encoding="utf-8", newline="\n"
+        )
+
+    def _write_loop_state(self, **overrides: str) -> None:
+        path = self.state_dir / "loop-state.md"
+        text = path.read_text(encoding="utf-8")
+        for key, value in overrides.items():
+            text = re.sub(
+                rf"(?m)^{re.escape(key)}:\s*.*$",
+                f"{key}: {value}",
+                text,
+            )
+        path.write_text(text, encoding="utf-8")
+
+    def _make_execution_ready(self) -> None:
+        for filename, pairs in {
+            "project-rules.md": [("status: draft", "status: ready")],
+            "system-design.md": [
+                ("status: draft", "status: ready"),
+                ("not recorded", "not applicable"),
+                ("None recorded yet.", "None required."),
+                ("Replace with project-specific tradeoffs.", "No migration cost."),
+            ],
+            "task-plan.md": [
+                ("status: draft", "status: ready"),
+                ("Replace with first task title", "Build the thing"),
+                ("Replace with one concrete outcome.", "Thing works."),
+                ("replace/with/path", "src/app.py"),
+                ("replace with expected output", "test passes"),
+                ("replace with exact command or manual check", "python -m unittest"),
+                (
+                    "replace with worker-observable condition for submitting the task",
+                    "implementation is complete",
+                ),
+                (
+                    "replace with Orchestrator check required before accepting or merging",
+                    "tests pass and diff stays in allowed paths",
+                ),
+                ("risk_level: unclassified", "risk_level: low"),
+                ("not recorded", "localized task change"),
+            ],
+        }.items():
+            path = self.state_dir / filename
+            text = path.read_text(encoding="utf-8")
+            for old, new in pairs:
+                text = text.replace(old, new)
+            path.write_text(text, encoding="utf-8")
+
+    def _write_host_capabilities(self, capabilities: dict) -> None:
+        block = "## Host Capabilities\n\n```json\n"
+        block += json.dumps(capabilities, ensure_ascii=False, indent=2, sort_keys=True)
+        block += "\n```\n"
+        path = self.state_dir / "loop-state.md"
+        text = path.read_text(encoding="utf-8")
+        section_pattern = re.compile(r"(?ms)^## Host Capabilities\s*\n.*?(?=^## |\Z)")
+        if section_pattern.search(text):
+            text = section_pattern.sub(block, text)
+        else:
+            text = text.rstrip() + "\n\n" + block
+        path.write_text(text, encoding="utf-8")
+
+    def _set_task_status(self, status: str) -> None:
+        path = self.state_dir / "task-plan.md"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("- status: pending", f"- status: {status}")
+        path.write_text(text, encoding="utf-8")
+
+    def _write_validation_log(self, entry: str) -> None:
+        (self.state_dir / "validation-log.md").write_text(
+            "# Validation Log\n\n## Entries\n\n" + entry,
+            encoding="utf-8",
+        )
+
+    def _make_delivery_ready(self) -> None:
+        self._set_task_status("complete")
+        self._write_loop_state(status="delivered", current_phase="delivery")
+        self._write_validation_log(
+            "### TASK-001 / acceptance\n\n"
+            "- gate: acceptance\n- task_status: submitted_for_acceptance\n"
+            "- submission_commit: direct_apply\n- developer_identity: developer\n"
+            "- tester_identity: tester\n- tester_result: passed\n"
+            "- reviewer_identity: reviewer\n- reviewer_result: approved\n"
+            "- adversarial_cases_expected: not_applicable\n"
+            "- adversarial_cases_passed: not_applicable\n"
+            "- disagreement_status: none\n- orchestrator_decision: accepted\n"
+            "- residual_risk: none\n\n"
+            "### TASK-001 / integration\n\n"
+            "- gate: integration\n- integration_strategy: squash_merge\n"
+            "- integration_commit: abc1234\n"
+            "- main_workspace_verification: passed\n"
+            "- verification_evidence: python -m unittest\n"
+            "- final_task_status: complete\n",
+        )
+        (self.state_dir / "delivery-report.md").write_text(
+            "# Delivery Report\n\nstatus: complete\n\n## Completed\n\n"
+            "- REQ-001: task CRUD.\n\n## Validation\n\n- Tests passed.\n\n"
+            "## Run Instructions\n\n- python app.py\n\n## Known Risks\n\n- None.\n\n"
+            "## Not Completed\n\n- None.\n",
+            encoding="utf-8",
+        )
+
+    def test_ui_required_contract_plus_browser_unavailable_fails_host_phase(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._write_host_capabilities({
+            "browser": {"status": "unavailable", "evidence": "host report: not installed"},
+            "git": {"status": "available", "evidence": "git --version"},
+        })
+
+        result = self._run_check("host")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("browser", (result.stdout + result.stderr).lower())
+
+    def test_database_not_applicable_needs_no_evidence(self) -> None:
+        """When database is not_applicable, initialization must succeed
+        without database evidence — only required capabilities need evidence."""
+        self._write_contract(self.API_CONTRACT)
+        self._make_execution_ready()
+        # Provide evidence for every *required* capability so the only
+        # potential blocker is database, which is not_applicable.
+        self._write_host_capabilities({
+            "git": {"status": "available", "evidence": "git --version"},
+            "security": {"status": "available", "evidence": "bandit ok"},
+            "performance": {"status": "available", "evidence": "bench ok"},
+        })
+
+        result = self._run_check("initialization")
+
+        combined = result.stdout + result.stderr
+        self.assertEqual(
+            result.returncode, 0,
+            f"initialization should succeed when database is not_applicable; "
+            f"output: {combined}",
+        )
+
+    def test_docker_not_applicable_needs_no_evidence(self) -> None:
+        """When docker is not_applicable, initialization must succeed
+        without docker evidence — only required capabilities need evidence."""
+        self._write_contract(self.API_CONTRACT)
+        self._make_execution_ready()
+        # Provide evidence for every *required* capability so the only
+        # potential blocker is docker, which is not_applicable.
+        self._write_host_capabilities({
+            "git": {"status": "available", "evidence": "git --version"},
+            "security": {"status": "available", "evidence": "bandit ok"},
+            "performance": {"status": "available", "evidence": "bench ok"},
+        })
+
+        result = self._run_check("initialization")
+
+        combined = result.stdout + result.stderr
+        self.assertEqual(
+            result.returncode, 0,
+            f"initialization should succeed when docker is not_applicable; "
+            f"output: {combined}",
+        )
+
+    def test_ui_required_task_missing_manifest_fails_ui_phase(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._set_task_status("complete")
+        self._write_validation_log(
+            "### TASK-001 / acceptance\n\n"
+            "- gate: acceptance\n- task_status: submitted_for_acceptance\n"
+            "- submission_commit: direct_apply\n- developer_identity: developer\n"
+            "- tester_identity: tester\n- tester_result: passed\n"
+            "- reviewer_identity: reviewer\n- reviewer_result: approved\n"
+            "- adversarial_cases_expected: not_applicable\n"
+            "- adversarial_cases_passed: not_applicable\n"
+            "- disagreement_status: none\n- orchestrator_decision: accepted\n"
+            "- residual_risk: none\n",
+        )
+
+        result = self._run_check("ui", task="TASK-001")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("manifest", (result.stdout + result.stderr).lower())
+
+    def test_handwritten_passed_delivery_text_without_manifest_fails(self) -> None:
+        self._write_contract(self.UI_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready()
+
+        result = self._run_check("delivery")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("manifest", (result.stdout + result.stderr).lower())
+
+    def test_api_only_justified_not_applicable_still_needs_evidence_manifests(self) -> None:
+        self._write_contract(self.API_CONTRACT)
+        self._make_execution_ready()
+        self._make_delivery_ready()
+
+        result = self._run_check("delivery")
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        combined = result.stdout + result.stderr
+        self.assertTrue(
+            any(
+                domain in combined.lower()
+                for domain in ("functional", "security", "performance", "delivery-smoke")
+            ),
+            f"expected at least one missing domain error in: {combined}",
+        )
 
 
 if __name__ == "__main__":

@@ -899,7 +899,15 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 "- integration_commit: abc1234\n"
                 "- main_workspace_verification: passed\n"
                 "- verification_evidence: python -m unittest\n"
-                "- final_task_status: complete\n",
+                "- final_task_status: complete\n"
+                "\n### PROJECT / functional\n\n"
+                "- artifact_manifest: evidence/functional-manifest.json\n"
+                "\n### PROJECT / security\n\n"
+                "- artifact_manifest: evidence/security-manifest.json\n"
+                "\n### PROJECT / performance\n\n"
+                "- artifact_manifest: evidence/performance-manifest.json\n"
+                "\n### PROJECT / delivery-smoke\n\n"
+                "- artifact_manifest: evidence/delivery-smoke-manifest.json\n",
                 encoding="utf-8",
             )
             (state_dir / "delivery-report.md").write_text(
