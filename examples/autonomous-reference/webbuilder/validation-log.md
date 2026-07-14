@@ -103,8 +103,8 @@
 - final_task_status: complete
 
 ### PROJECT / functional
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/functional/1/manifest.json
-- record_id: EV-1eac83a6107b0b53
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/functional/1/manifest.json
+- record_id: EV-54138fcd88f53be6
 - attempt: 1
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce
@@ -113,8 +113,8 @@
 - quality_domain: functional
 
 ### PROJECT / ui
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/ui/2/manifest.json
-- record_id: EV-5910132d34c337d4
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/ui/2/manifest.json
+- record_id: EV-706b53acbe4d0349
 - attempt: 2
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce
@@ -123,8 +123,8 @@
 - quality_domain: ui
 
 ### PROJECT / accessibility
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/accessibility/3/manifest.json
-- record_id: EV-b1fa94ca13948087
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/accessibility/3/manifest.json
+- record_id: EV-95d695ac11387873
 - attempt: 3
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce
@@ -133,8 +133,8 @@
 - quality_domain: accessibility
 
 ### PROJECT / performance
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/performance/4/manifest.json
-- record_id: EV-f93964ad9ebe6280
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/performance/4/manifest.json
+- record_id: EV-19dfcde22b2a6ff9
 - attempt: 4
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce
@@ -143,8 +143,8 @@
 - quality_domain: performance
 
 ### PROJECT / security
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/security/5/manifest.json
-- record_id: EV-2976dbe8b3856d89
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/security/5/manifest.json
+- record_id: EV-febe130957e02544
 - attempt: 5
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce
@@ -153,8 +153,8 @@
 - quality_domain: security
 
 ### PROJECT / delivery-smoke
-- artifact_manifest: .webbuilder-artifacts/reference-delivery-002/delivery-smoke/6/manifest.json
-- record_id: EV-0743ff8ea550cc9b
+- artifact_manifest: .webbuilder-artifacts/reference-delivery-003/delivery-smoke/6/manifest.json
+- record_id: EV-cbe4643e974a619d
 - attempt: 6
 - contract_revision: 1
 - implementation_fingerprint: sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce

@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    {
+      "media_type": "text/plain",
+      "path": ".webbuilder-artifacts/reference-delivery-003/functional/1/command-output.txt",
+      "sha256": "sha256:07a5ed94b23fde6f3b521e7ab3ffcdb0456cc564bc7b4f5deb4cddbf49fd9157",
+      "size": 23
+    }
+  ],
+  "attempt": 1,
+  "command": [
+    "python",
+    "-c",
+    "print('reference-delivery-003')"
+  ],
+  "contract_revision": 1,
+  "cwd": ".",
+  "exit_code": 0,
+  "implementation_fingerprint": "sha256:511e92ae83442d6b73636d351332b93f8e83d92680309f2c3406286c8c257cce",
+  "record_id": "EV-54138fcd88f53be6",
+  "redaction": {
+    "replacements": 0,
+    "status": "passed"
+  },
+  "result": "passed",
+  "run_id": "reference-delivery-003",
+  "schema_version": "1.0",
+  "subject_id": "functional",
+  "supersedes_record_id": null,
+  "tool_versions": {
+    "python": "3.12.4"
+  }
+}

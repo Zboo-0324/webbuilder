@@ -53,6 +53,16 @@ class StateSchemaTests(unittest.TestCase):
             second = direct_apply_fingerprint(root, ["src/app.py"])
             self.assertNotEqual(first, second)
 
+    def test_direct_apply_fingerprint_ignores_line_ending_differences(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "readme.txt"
+            target.write_bytes(b"hello\nworld\n")
+            lf_fp = direct_apply_fingerprint(root, ["readme.txt"])
+            target.write_bytes(b"hello\r\nworld\r\n")
+            crlf_fp = direct_apply_fingerprint(root, ["readme.txt"])
+            self.assertEqual(lf_fp, crlf_fp)
+
 
 class StateTransitionTests(unittest.TestCase):
     def test_interrupted_transaction_recovers_all_files(self) -> None:

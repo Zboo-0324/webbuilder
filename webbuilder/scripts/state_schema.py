@@ -70,8 +70,9 @@ def direct_apply_fingerprint(project_root: Path, allowed_paths: Iterable[str]) -
     for value in sorted(set(allowed_paths)):
         path = project_root / value
         if path.is_file():
+            content = path.read_bytes().replace(b"\r\n", b"\n")
             entries.append(
-                {"path": value.replace("\\", "/"), "sha256": sha256_bytes(path.read_bytes())}
+                {"path": value.replace("\\", "/"), "sha256": sha256_bytes(content)}
             )
     payload = json.dumps(entries, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return sha256_bytes(payload.encode("utf-8"))

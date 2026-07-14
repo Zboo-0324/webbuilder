@@ -1,0 +1,2 @@
+# Lock all text files (including evidence outputs) to LF line endings.
+* text=auto eol=lf
