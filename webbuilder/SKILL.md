@@ -65,7 +65,7 @@ After recovery succeeds, record the resume checkpoint:
 python <skill-root>/scripts/transition-state.py --target <project-root> --resume
 ```
 
-The `--resume` event records a resume checkpoint in `loop-state.md` and clears `stop_reason`. Use it when the user explicitly resumes from a previously recorded checkpoint after a declared stop condition was resolved.
+The `--resume` event clears `resume_checkpoint` and `stop_reason` in `loop-state.md` and sets `status` to `active`. Use it when the user explicitly resumes after a declared stop condition was resolved.
 
 ## Hard Gates
 

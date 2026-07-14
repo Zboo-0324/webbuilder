@@ -138,6 +138,33 @@ class SkillResumeCommandTests(unittest.TestCase):
         self.assertNotRegex(code_block, r"--resume\s+\S+")
         self.assertNotIn("--checkpoint", code_block)
 
+    def test_skill_md_resume_section_says_checkpoint_cleared_not_recorded(self) -> None:
+        """--resume sets resume_checkpoint to 'none' (clears it); docs must not say it records one."""
+        text = _read(SKILL_MD)
+        section = text[text.find("## Resume Through the State Kernel"):]
+        # Trim to the next ## heading so we only inspect this section.
+        next_heading = section.find("\n## ", 1)
+        if next_heading != -1:
+            section = section[:next_heading]
+        # Find the prose paragraph that mentions --resume outside a code block.
+        in_code = False
+        resume_para = ""
+        for line in section.splitlines():
+            if line.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code:
+                continue
+            if "--resume" in line:
+                resume_para = line
+                break
+        self.assertNotIn(
+            "records",
+            resume_para,
+            "--resume clears resume_checkpoint (sets it to 'none'); "
+            "the docs must not say --resume records a checkpoint",
+        )
+
 
 # ===================================================================
 # 3. READMEs: eleven phases including host, initialization, ui
