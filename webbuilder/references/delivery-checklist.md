@@ -50,9 +50,9 @@ python <skill-root>/scripts/capture-evidence.py --target <project-root> --run DE
 
 ## Redaction Policy
 
-All captured evidence is automatically redacted. The redactor strips authorization headers (Bearer tokens, Basic credentials), Cookie headers, and secret-bearing assignment patterns. Use `--explicit-secrets <value>` to redact additional tokens. If redaction fails, the manifest records `redaction.status: failed` and the delivery gate rejects it.
+All captured evidence is automatically redacted. The redactor strips authorization headers (Bearer tokens, Basic credentials), Cookie headers, and secret-bearing assignment patterns. The manifest always records `redaction.status: passed` after applying built-in redaction. The delivery gate accepts only manifests whose `redaction.status` is `passed` and rejects any other status.
 
-Authorization header values are always redacted regardless of explicit secret lists.
+Authorization header values are always redacted.
 
 ## Delivery Report Template
 

@@ -49,6 +49,10 @@ WebBuilder does not:
 - deploy applications
 - replace user confirmation for high-impact decisions
 
+## Detailed Documentation
+
+The complete product guide, usage instructions, command reference, and troubleshooting are available in the [WebBuilder Product and Usage Guide](./webbuilder/references/project-results-and-usage.md) (Chinese).
+
 ## Repository Layout
 
 ```text
@@ -57,6 +61,7 @@ webbuilder/
   agents/
     openai.yaml
   references/
+    project-results-and-usage.md
     delivery-checklist.md
     install.md
     interface-design.md
@@ -77,6 +82,10 @@ webbuilder/
     transition-state.py
     approve-contract.py
     contract_core.py
+    evidence_core.py
+    host_capabilities.py
+    state_schema.py
+    state_transition.py
 ```
 
 ## Install
@@ -220,15 +229,19 @@ Capture verification evidence:
 python webbuilder/scripts/capture-evidence.py --target . --run RUN-1 --subject TASK-001 --attempt 1 --contract-revision 1 -- python -m unittest
 ```
 
-Evidence is stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` with manifest.json and command output. All evidence is automatically redacted for authorization headers, cookies, and explicit secrets.
+Evidence is stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` with manifest.json and command output. All evidence is automatically redacted for authorization headers, cookies, and secret-bearing assignment patterns.
 
-Check host capabilities:
+Inspect host capabilities and validate readiness:
 
 ```powershell
-python webbuilder/scripts/check-host.py --target . --phase host
-python webbuilder/scripts/check-host.py --target . --phase initialization
-python webbuilder/scripts/check-host.py --target . --phase ui
+python webbuilder/scripts/check-host.py --target .
+python webbuilder/scripts/check-state.py --target . --phase host
+python webbuilder/scripts/check-state.py --target . --phase initialization
+python webbuilder/scripts/check-state.py --target . --phase ui
 ```
+
+`check-host.py --target .` inspects and records the host capability report.
+The three readiness gates are run by `check-state.py` with `--phase host`, `--phase initialization`, and `--phase ui`.
 
 Before final delivery, run the delivery gate:
 
@@ -252,7 +265,7 @@ The checker has eleven validation phases:
 - `initialization`: validates host capabilities satisfy the approved contract; not_applicable capabilities may lack evidence
 - `ui`: validates UI evidence manifests exist when the contract declares UI as required
 
-The initializer does not overwrite older state files. Schema 1.4 adds guided delivery and recovery metadata (`delivery_mode`, `autonomy_scope`, `stop_reason`, `resume_checkpoint`, `active_run_id`, `state_revision`, and `pending_transition`). Migration preserves content and brings V1 through V1.3 state forward; tasks without a documented risk basis become `unclassified` and must be explicitly classified before dispatch.
+The initializer does not overwrite existing state files. Schema 1.4 includes guided delivery and recovery metadata (`delivery_mode`, `autonomy_scope`, `stop_reason`, `resume_checkpoint`, `active_run_id`, `state_revision`, and `pending_transition`). Migration preserves content and upgrades V1 through V1.3 state to the current schema; tasks without a documented risk basis become `unclassified` and must be explicitly classified before dispatch.
 
 `loop-state.md` is the canonical State Kernel record. Agents may edit descriptive content and submit evidence, but must not manually set approval, readiness, acceptance, integration, stop/resume, or delivery-success values. State-changing operations use a transaction journal under `webbuilder/.transitions/`; recovery completes only a non-divergent pending transition.
 
@@ -323,7 +336,7 @@ For non-Git projects or explicit single-session fallback, use `handoff_mode: sin
 Run a state script smoke check:
 
 ```powershell
-$tmp = Join-Path $env:TEMP "spec2web-smoke"
+$tmp = Join-Path $env:TEMP "webbuilder-smoke"
 Remove-Item -Recurse -Force -LiteralPath $tmp -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 python webbuilder/scripts/init-state.py --target $tmp

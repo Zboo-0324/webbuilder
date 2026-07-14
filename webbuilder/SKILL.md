@@ -25,6 +25,8 @@ If the current project contains `webbuilder/loop-state.md` with `status: active`
 
 For localized invocation examples and install paths, read `references/install.md`.
 
+For detailed product documentation, usage guide, command reference, and troubleshooting, read `references/project-results-and-usage.md`.
+
 ## Initialization
 
 When the user asks to initialize WebBuilder:
@@ -59,13 +61,13 @@ python <skill-root>/scripts/check-state.py --target <project-root> --phase struc
 
 Recovery completes the one journaled transition when its files are still at known original or target contents. If it reports divergent state, stop for manual inspection; do not edit around the journal.
 
-After recovery succeeds, record the resume checkpoint:
+After recovery succeeds, resume the workflow:
 
 ```text
 python <skill-root>/scripts/transition-state.py --target <project-root> --resume
 ```
 
-The `--resume` event clears `resume_checkpoint` and `stop_reason` in `loop-state.md` and sets `status` to `active`. Use it when the user explicitly resumes after a declared stop condition was resolved.
+The `--resume` event clears `resume_checkpoint` (sets it to `none`) and `stop_reason` in `loop-state.md`, and sets `status` to `active`. Use it when the user explicitly resumes after a declared stop condition was resolved.
 
 ## Hard Gates
 
@@ -454,23 +456,25 @@ Workers capture evidence in their task worktree. Orchestrator promotes evidence 
 
 ## Redaction Policy
 
-All captured evidence is automatically redacted before writing. The redactor strips authorization headers, Cookie headers, and secret-bearing assignment patterns from command output. Pass `--explicit-secrets <value>` to redact additional tokens. If redaction fails, the manifest records `redaction.status: failed` and the delivery gate rejects it.
+All captured evidence is automatically redacted before writing. The redactor strips authorization headers, Cookie headers, and secret-bearing assignment patterns from command output. The manifest always records `redaction.status: passed` after applying built-in redaction. The delivery gate accepts only manifests whose `redaction.status` is `passed` and rejects any other status.
 
-Authorization header values (Bearer tokens, Basic credentials, API keys in headers) are always redacted regardless of `--explicit-secrets`.
+Authorization header values (Bearer tokens, Basic credentials, API keys in headers) are always redacted.
 
 ## Host Capability Check
 
-Before dispatching tasks that require specific host capabilities (UI, database, docker, etc.), verify the host can support them:
+Before dispatching tasks that require specific host capabilities (UI, database, docker, etc.), inspect and validate them:
 
 ```text
-python <skill-root>/scripts/check-host.py --target <project-root> --phase host
-python <skill-root>/scripts/check-host.py --target <project-root> --phase initialization
-python <skill-root>/scripts/check-host.py --target <project-root> --phase ui
+python <skill-root>/scripts/check-host.py --target <project-root>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase host
+python <skill-root>/scripts/check-state.py --target <project-root> --phase initialization
+python <skill-root>/scripts/check-state.py --target <project-root> --phase ui
 ```
 
-- `host` validates that all capabilities marked `required` in the contract have `available` status with evidence in `loop-state.md`.
-- `initialization` validates that required capabilities have evidence but allows `not_applicable` capabilities to lack evidence.
-- `ui` validates that UI-specific evidence manifests exist when the contract declares `ui` as `required`.
+- `check-host.py --target <project-root>` inspects and records the host capability report.
+- `--phase host` validates that all capabilities marked `required` in the contract have `available` status with evidence in `loop-state.md`.
+- `--phase initialization` validates that required capabilities have evidence but allows `not_applicable` capabilities to lack evidence.
+- `--phase ui` validates that UI-specific evidence manifests exist when the contract declares `ui` as `required`.
 
 Record host capability evidence in the `## Host Capabilities` section of `loop-state.md` as a JSON block with status and evidence for each capability.
 

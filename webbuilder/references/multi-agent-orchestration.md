@@ -146,15 +146,16 @@ Evidence is stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/
 
 Before integration, the Orchestrator promotes evidence from the worker worktree to the main workspace. Promotion copies artifacts and rewrites paths to remain project-relative. If the source manifest was tampered or the destination already exists with divergent content, promotion rejects the write.
 
-Host capability evidence is checked with `check-host.py`:
+Host capability evidence is inspected with `check-host.py` and validated with `check-state.py`:
 
 ```text
-python <skill-root>/scripts/check-host.py --target <project-root> --phase host
-python <skill-root>/scripts/check-host.py --target <project-root> --phase initialization
-python <skill-root>/scripts/check-host.py --target <project-root> --phase ui
+python <skill-root>/scripts/check-host.py --target <project-root>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase host
+python <skill-root>/scripts/check-state.py --target <project-root> --phase initialization
+python <skill-root>/scripts/check-state.py --target <project-root> --phase ui
 ```
 
-Record host capabilities in the `## Host Capabilities` section of `loop-state.md`. All evidence output is automatically redacted for authorization headers, cookies, and explicit secrets.
+Record host capabilities in the `## Host Capabilities` section of `loop-state.md`. All evidence output is automatically redacted for authorization headers, cookies, and secret-bearing assignment patterns.
 
 ## Integration Queue
 
