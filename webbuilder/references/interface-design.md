@@ -78,11 +78,13 @@ Write this section into `webbuilder/system-design.md` before frontend task break
 When the contract marks `ui` as `required`, verify the host can render and test browser-based UI before dispatching frontend tasks:
 
 ```text
-python <skill-root>/scripts/check-host.py --target <project-root> --phase host
-python <skill-root>/scripts/check-host.py --target <project-root> --phase initialization
-python <skill-root>/scripts/check-host.py --target <project-root> --phase ui
+python <skill-root>/scripts/check-host.py --target <project-root>
+python <skill-root>/scripts/check-state.py --target <project-root> --phase host
+python <skill-root>/scripts/check-state.py --target <project-root> --phase initialization
+python <skill-root>/scripts/check-state.py --target <project-root> --phase ui
 ```
 
+- `check-host.py --target <project-root>` inspects and records the host capability report.
 - `--phase host` checks that all required capabilities have available evidence.
 - `--phase initialization` checks required capabilities have evidence while allowing `not_applicable` capabilities to skip.
 - `--phase ui` checks that UI-specific evidence manifests exist when the contract requires a UI.
