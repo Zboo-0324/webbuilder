@@ -45,6 +45,12 @@ Use the dynamic slash command when available:
 /webbuilder 生成交付报告
 ```
 
+Autonomous mode requires explicit opt-in. Guided mode is the default for all projects:
+
+```text
+/webbuilder start autonomous from requirements.md
+```
+
 Equivalent natural-language requests are also valid:
 
 ```text

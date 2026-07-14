@@ -1,7 +1,8 @@
 interface:
   display_name: "WebBuilder"
   short_description: "Orchestrate gated multi-agent full-stack delivery"
-  default_prompt: "Use $webbuilder to initialize or continue an adaptive multi-agent web delivery workflow."
+  default_prompt: "Use $webbuilder to initialize or continue an adaptive multi-agent web delivery workflow. Guided mode is the default; autonomous mode requires explicit opt-in."
 
 policy:
   allow_implicit_invocation: true
+  delivery_mode_default: guided

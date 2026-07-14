@@ -136,10 +136,13 @@ robocopy $src $dst /MIR
 /webbuilder initialize this project
 /webbuilder enable workflow
 /webbuilder start from requirements.md
+/webbuilder start autonomous from requirements.md
 /webbuilder continue current task
 /webbuilder show status
 /webbuilder generate delivery report
 ```
+
+自主模式需要显式选择；引导模式是所有新项目和已有项目的默认模式。
 
 也可以用自然语言：
 
@@ -330,7 +333,15 @@ python webbuilder/scripts/check-state.py --target $tmp --phase structure
 python -X utf8 "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
 ```
 
-## 设计原则
+## Golden 技术配置文件
+
+WebBuilder 维护经过验证的技术栈配置文件，用于推荐和启动项目：
+
+```text
+webbuilder/references/technology-profiles/django-5.2-lts.md
+```
+
+Django 5.2 LTS Golden Profile 包含经过验证的 Python/Django/Playwright 版本组合和启动说明。
 
 - 保持轻量。
 - 用显式状态文件作为项目记忆。

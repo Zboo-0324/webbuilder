@@ -129,7 +129,7 @@ VALID_FILE_STATUSES = {
     "project-rules.md": {"draft", "ready"},
     "requirements-baseline.md": {"draft", "confirmed"},
     "system-design.md": {"draft", "ready"},
-    "task-plan.md": {"draft", "ready"},
+    "task-plan.md": {"draft", "ready", "completed"},
     "delivery-report.md": {"draft", "complete"},
 }
 VALID_TASK_STATUSES = {
@@ -162,7 +162,7 @@ VALID_CHECKER_STRATEGIES = {
 VALID_ACTIVE_CHECKER_STRATEGIES = VALID_CHECKER_STRATEGIES | {"mixed"}
 VALID_USER_APPROVALS = {"not_required", "required", "approved"}
 VALID_DELIVERY_MODES = {"guided"}
-VALID_AUTONOMY_SCOPES = {"unconfirmed"}
+VALID_AUTONOMY_SCOPES = {"unconfirmed", "confirmed_plan"}
 VALID_STOP_REASONS = {
     "none",
     "verification_failed",
@@ -607,11 +607,17 @@ def check_specification_readiness(state_dir: Path) -> list[str]:
     return errors
 
 
-def check_execution_readiness(state_dir: Path, loop_status: str) -> list[str]:
+def check_execution_readiness(
+    state_dir: Path,
+    loop_status: str,
+    *,
+    status_overrides: dict[str, str] | None = None,
+) -> list[str]:
     errors: list[str] = []
     errors.extend(contract_revision_errors(state_dir))
 
     for filename, expected in EXECUTION_STATUSES.items():
+        expected = (status_overrides or {}).get(filename, expected)
         actual = top_level_value(read_text(state_dir, filename), "status")
         if actual != expected:
             errors.append(f"{filename} status must be {expected}; found {actual or 'missing'}")
@@ -1104,8 +1110,15 @@ def check_integration_readiness(state_dir: Path, task_id: str | None) -> list[st
     return errors
 
 
-def check_delivery_readiness(state_dir: Path) -> list[str]:
-    errors = check_execution_readiness(state_dir, loop_status="delivered")
+def check_delivery_readiness(
+    state_dir: Path,
+    evidence_project_root: Path | None = None,
+) -> list[str]:
+    errors = check_execution_readiness(
+        state_dir,
+        loop_status="delivered",
+        status_overrides={"task-plan.md": "completed"},
+    )
 
     loop_state = read_text(state_dir, "loop-state.md")
     if top_level_value(loop_state, "pending_transition") != "null":
@@ -1161,7 +1174,7 @@ def check_delivery_readiness(state_dir: Path) -> list[str]:
         if contract_rev is None:
             contract_rev = integer_value(requirements_text, "contract_revision")
 
-    project_root = state_dir.parent
+    project_root = evidence_project_root if evidence_project_root is not None else state_dir.parent
     current_fingerprint = None
     if (project_root / ".git").exists():
         try:
@@ -1311,6 +1324,7 @@ def check_state(
     phase: str = "structure",
     task_id: str | None = None,
     parallel_group: str | None = None,
+    evidence_project_root: Path | None = None,
 ) -> list[str]:
     state_dir = resolve_state_dir(target)
     if not state_dir.exists():
@@ -1330,7 +1344,7 @@ def check_state(
     elif phase == "integration":
         errors.extend(check_integration_readiness(state_dir, task_id))
     elif phase == "delivery":
-        errors.extend(check_delivery_readiness(state_dir))
+        errors.extend(check_delivery_readiness(state_dir, evidence_project_root=evidence_project_root))
     elif phase == "host":
         errors.extend(check_host_readiness(state_dir))
     elif phase == "ui":

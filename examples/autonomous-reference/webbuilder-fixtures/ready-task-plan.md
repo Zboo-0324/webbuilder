@@ -1,0 +1,289 @@
+# Task Plan
+
+contract-revision: 1
+based_on_contract_revision: 1
+status: ready
+
+## Current Strategy
+
+Single-session execution with direct_apply integration. No Git worktrees required
+for this small reference application. Each task is executed sequentially by the
+Orchestrator in the main workspace.
+
+## Shared Contract Paths
+
+- manage.py
+- config/settings.py
+- config/urls.py
+- requirements.txt
+
+## Tasks
+
+### TASK-001: Django project scaffolding and work item model
+
+- task_id: TASK-001
+- requirement_ids: REQ-001
+- goal: Create the Django project structure, WorkItem model with title, description, is_complete, created_at, and completed_at fields, and run the initial migration.
+- dependencies: none
+- status: pending
+- risk_level: low
+- risk_basis: Standard Django model creation with no external dependencies or complex logic.
+- checker_strategy: single_session
+- review_mode: standard
+- adversarial_review:
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
+- handoff_mode: single_session
+- integration_strategy: direct_apply
+- allowed_paths:
+  - workitems/models.py
+  - workitems/migrations/
+  - workitems/apps.py
+  - workitems/__init__.py
+  - config/settings.py
+- expected_outputs:
+  - workitems/models.py defines WorkItem with required fields
+  - migration 0001_initial.py applies cleanly
+- verification:
+  - python manage.py migrate --check
+  - python manage.py test workitems -v 2
+- completion_criteria:
+  - WorkItem model exists with all required fields
+  - Migration applies without errors
+  - Model unit tests pass
+- acceptance_gate:
+  - Orchestrator verifies model fields match contract and migrations apply cleanly
+- repair_budget: 3
+- submission_package:
+  - branch: direct_apply
+  - worktree: none (main workspace)
+  - implementation summary: WorkItem model with CRUD fields and initial migration
+  - changed files: workitems/models.py, workitems/migrations/0001_initial.py
+  - verification evidence: manage.py test and migrate --check output
+  - known risks or follow-up: none
+- risks_or_blockers:
+  - none
+- execution_workspace: main
+- parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- task_repair_attempt: 0
+- task_failure_fingerprint: none
+- task_same_fingerprint_count: 0
+- integration_repair_attempt: 0
+- integration_failure_fingerprint: none
+- integration_same_fingerprint_count: 0
+- integration_policy: orchestrator_review_then_serial_integration
+
+### TASK-002: Authentication views and login flow
+
+- task_id: TASK-002
+- requirement_ids: REQ-002
+- goal: Configure Django's built-in auth views for login and logout, create the login template, and add the auth URL routes so unauthenticated users can log in and authenticated users can log out.
+- dependencies: TASK-001
+- status: pending
+- risk_level: low
+- risk_basis: Uses Django's well-tested built-in auth views with minimal customization.
+- checker_strategy: single_session
+- review_mode: standard
+- adversarial_review:
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
+- handoff_mode: single_session
+- integration_strategy: direct_apply
+- allowed_paths:
+  - config/urls.py
+  - config/settings.py
+  - templates/registration/login.html
+  - static/app.css
+- expected_outputs:
+  - Login page renders at /accounts/login/
+  - Logout redirects to login page
+  - Unauthenticated access to /workitems/ redirects to login
+- verification:
+  - python manage.py test workitems -v 2
+  - python -m unittest e2e.test_primary_flow.PrimaryFlowTests.test_login_create_complete_and_responsive_layout -v
+- completion_criteria:
+  - Login page accessible and functional
+  - Logout works correctly
+  - Auth redirect works for protected views
+- acceptance_gate:
+  - Orchestrator verifies login/logout flow works and auth redirect is enforced
+- repair_budget: 3
+- submission_package:
+  - branch: direct_apply
+  - worktree: none (main workspace)
+  - implementation summary: Django auth views, login template, URL configuration
+  - changed files: config/urls.py, config/settings.py, templates/registration/login.html, static/app.css
+  - verification evidence: test and browser flow output
+  - known risks or follow-up: none
+- risks_or_blockers:
+  - none
+- execution_workspace: main
+- parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- task_repair_attempt: 0
+- task_failure_fingerprint: none
+- task_same_fingerprint_count: 0
+- integration_repair_attempt: 0
+- integration_failure_fingerprint: none
+- integration_same_fingerprint_count: 0
+- integration_policy: orchestrator_review_then_serial_integration
+
+### TASK-003: Work item views, templates, and CRUD operations
+
+- task_id: TASK-003
+- requirement_ids: REQ-001, REQ-003, REQ-004
+- goal: Implement the work item list view, create view, and complete action with appropriate templates so authenticated users can view, create, and complete work items.
+- dependencies: TASK-001, TASK-002
+- status: pending
+- risk_level: low
+- risk_basis: Standard Django view and template implementation with no complex business logic.
+- checker_strategy: single_session
+- review_mode: standard
+- adversarial_review:
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
+- handoff_mode: single_session
+- integration_strategy: direct_apply
+- allowed_paths:
+  - workitems/views.py
+  - workitems/urls.py
+  - workitems/forms.py
+  - templates/workitems/
+  - config/urls.py
+- expected_outputs:
+  - GET /workitems/ shows list of work items
+  - POST /workitems/create/ creates a new work item
+  - POST /workitems/<id>/complete/ marks item as complete
+- verification:
+  - python manage.py test workitems -v 2
+  - python -m unittest e2e.test_primary_flow.PrimaryFlowTests.test_login_create_complete_and_responsive_layout -v
+- completion_criteria:
+  - List view displays all work items with status
+  - Create form validates and saves new work items
+  - Complete action marks items as complete with timestamp
+  - Empty list shows appropriate message
+- acceptance_gate:
+  - Orchestrator verifies CRUD operations work correctly and templates render properly
+- repair_budget: 3
+- submission_package:
+  - branch: direct_apply
+  - worktree: none (main workspace)
+  - implementation summary: Work item views, forms, templates for list/create/complete
+  - changed files: workitems/views.py, workitems/urls.py, workitems/forms.py, templates/workitems/
+  - verification evidence: test and browser flow output
+  - known risks or follow-up: none
+- risks_or_blockers:
+  - none
+- execution_workspace: main
+- parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- task_repair_attempt: 0
+- task_failure_fingerprint: none
+- task_same_fingerprint_count: 0
+- integration_repair_attempt: 0
+- integration_failure_fingerprint: none
+- integration_same_fingerprint_count: 0
+- integration_policy: orchestrator_review_then_serial_integration
+
+### TASK-004: Accessibility, responsive layout, and performance verification
+
+- task_id: TASK-004
+- requirement_ids: REQ-005
+- goal: Add responsive CSS for mobile/tablet/desktop viewports, integrate axe-core accessibility scanning in the e2e test suite, and implement a performance budget test ensuring the primary flow completes under 3 seconds.
+- dependencies: TASK-003
+- status: pending
+- risk_level: low
+- risk_basis: CSS styling and test-only changes with no impact on existing functionality.
+- checker_strategy: single_session
+- review_mode: standard
+- adversarial_review:
+  - not_applicable
+- user_approval: not_required
+- approval_evidence:
+  - not_applicable
+- rollback_plan:
+  - not_applicable
+- recovery_point:
+  - not_applicable
+- residual_risk_owner: not_applicable
+- handoff_mode: single_session
+- integration_strategy: direct_apply
+- allowed_paths:
+  - static/app.css
+  - e2e/
+  - templates/
+- expected_outputs:
+  - Responsive layout verified at 320px, 768px, 1280px
+  - axe-core reports zero critical accessibility violations
+  - Primary flow completes under 3 seconds
+- verification:
+  - python -m unittest e2e.test_primary_flow.PrimaryFlowTests.test_accessibility_states -v
+  - python -m unittest e2e.test_primary_flow.PrimaryFlowTests.test_warm_primary_flow_under_budget -v
+- completion_criteria:
+  - Responsive CSS handles mobile, tablet, and desktop viewports
+  - axe-core accessibility scan passes with zero critical violations
+  - Performance budget test passes (under 3 seconds)
+- acceptance_gate:
+  - Orchestrator verifies all three quality gates pass: responsive, accessibility, performance
+- repair_budget: 3
+- submission_package:
+  - branch: direct_apply
+  - worktree: none (main workspace)
+  - implementation summary: Responsive CSS, axe-core integration, performance budget test
+  - changed files: static/app.css, e2e/test_primary_flow.py
+  - verification evidence: accessibility and performance test output
+  - known risks or follow-up: none
+- risks_or_blockers:
+  - none
+- execution_workspace: main
+- parallel_group: none
+- shared_resources:
+  - none
+- conflict_domains:
+  - none
+- integration_dependencies:
+  - none
+- task_repair_attempt: 0
+- task_failure_fingerprint: none
+- task_same_fingerprint_count: 0
+- integration_repair_attempt: 0
+- integration_failure_fingerprint: none
+- integration_same_fingerprint_count: 0
+- integration_policy: orchestrator_review_then_serial_integration

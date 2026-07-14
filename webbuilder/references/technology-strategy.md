@@ -12,6 +12,7 @@ For existing projects:
 
 For new projects:
 
+- check [maintained golden profiles](technology-profiles/django-5.2-lts.md) first; use a validated profile when it fits
 - propose 2-3 viable stacks
 - recommend one default
 - explain tradeoffs in delivery speed, maintainability, testing, deployment, data model, and UI needs

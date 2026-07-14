@@ -19,8 +19,9 @@ Before final delivery, verify and record evidence.
 - `delivery-report.md` has `status: complete`
 - `loop-state.md` has `current_phase: delivery` and `status: delivered`
 - the delivery-phase state check passes
-
+- `stop_reason` is `none` for delivery
 - evidence manifests exist under `.webbuilder-artifacts/` for every required verification domain
+- host capability evidence is recorded for `required` capabilities in `loop-state.md`
 - each manifest passes hash, contract-revision, fingerprint, and redaction verification
 
 Run the bundled checker from the Skill directory:

@@ -136,10 +136,13 @@ Use Spec2Web explicitly when you want the workflow active:
 /webbuilder initialize this project
 /webbuilder enable workflow
 /webbuilder start from requirements.md
+/webbuilder start autonomous from requirements.md
 /webbuilder continue current task
 /webbuilder show status
 /webbuilder generate delivery report
 ```
+
+Autonomous mode requires explicit opt-in; guided mode is the default for all new and existing projects.
 
 Natural-language equivalents also work:
 
@@ -330,7 +333,15 @@ Validate the Skill package:
 python -X utf8 "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py" webbuilder
 ```
 
-## Design Principles
+## Golden Technology Profiles
+
+WebBuilder maintains validated technology stack profiles for recommendation and project bootstrapping:
+
+```text
+webbuilder/references/technology-profiles/django-5.2-lts.md
+```
+
+The Django 5.2 LTS Golden Profile includes verified Python/Django/Playwright version combinations and startup instructions.
 
 - Keep the workflow lightweight.
 - Use explicit state files as project memory.

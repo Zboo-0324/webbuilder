@@ -14,6 +14,7 @@ Use this Skill when the user explicitly asks to initialize, enable, start, resum
 - `/webbuilder initialize this project`
 - `/webbuilder enable workflow`
 - `/webbuilder start from requirements.md`
+- `/webbuilder start autonomous from requirements.md`
 - `/webbuilder continue current task`
 - `/webbuilder show status`
 - `/webbuilder generate delivery report`
@@ -53,10 +54,13 @@ Before every resume, recover the State Kernel and verify its structure before re
 
 ```text
 python <skill-root>/scripts/transition-state.py --target <project-root> --recover
+python <skill-root>/scripts/transition-state.py --target <project-root> --resume <checkpoint-id>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
 ```
 
 Recovery completes the one journaled transition when its files are still at known original or target contents. If it reports divergent state, stop for manual inspection; do not edit around the journal.
+
+The `--resume` event records a resume checkpoint in `loop-state.md` and clears `stop_reason`. Use it when the user explicitly resumes from a previously recorded checkpoint after a declared stop condition was resolved.
 
 ## Hard Gates
 

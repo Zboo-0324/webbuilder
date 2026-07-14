@@ -1,0 +1,29 @@
+{
+  "scenario_name": "api-only",
+  "capabilities": {
+    "ui": {"status": "not_applicable", "reason": "API-only service has no user-facing interface"},
+    "database": {"status": "required"},
+    "authentication": {"status": "required"},
+    "rbac": {"status": "required"},
+    "audit": {"status": "required"},
+    "docker": {"status": "required"},
+    "accessibility": {"status": "not_applicable", "reason": "No UI means accessibility testing is not applicable"},
+    "performance": {"status": "required", "profile": "standard"},
+    "security": {"status": "required", "profile": "standard"}
+  },
+  "quality_domains": [
+    {"name": "functional", "applicable": true, "reason": "API endpoints must return correct responses"},
+    {"name": "ui", "applicable": false, "reason": "No user-facing UI exists in an API-only service"},
+    {"name": "accessibility", "applicable": false, "reason": "Without a UI there are no accessibility requirements"},
+    {"name": "performance", "applicable": true, "reason": "API must meet response-time and throughput targets"},
+    {"name": "security", "applicable": true, "reason": "API handles data requiring authentication and authorization"},
+    {"name": "delivery-smoke", "applicable": true, "reason": "Deployment pipeline must verify basic functionality"}
+  ],
+  "task_bounds": {
+    "task-1": {"task_id": "task-1", "max_repair_attempts": 3, "stop_reason": "none"},
+    "task-2": {"task_id": "task-2", "max_repair_attempts": 2, "stop_reason": "needs_decision"}
+  },
+  "domain_reference": null,
+  "delivery_assumptions": ["database initialization via migration scripts"],
+  "stop_reasons": ["none", "verification_failed", "needs_decision"]
+}

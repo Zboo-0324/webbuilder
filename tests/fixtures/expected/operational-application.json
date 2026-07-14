@@ -1,0 +1,30 @@
+{
+  "scenario_name": "operational-application",
+  "capabilities": {
+    "ui": {"status": "required"},
+    "database": {"status": "required"},
+    "authentication": {"status": "required"},
+    "rbac": {"status": "required"},
+    "audit": {"status": "required"},
+    "docker": {"status": "required"},
+    "accessibility": {"status": "required"},
+    "performance": {"status": "required", "profile": "strict"},
+    "security": {"status": "required", "profile": "strict"}
+  },
+  "quality_domains": [
+    {"name": "functional", "applicable": true, "reason": "Operational views and controls must function correctly"},
+    {"name": "ui", "applicable": true, "reason": "Dashboard requires real-time interactive UI"},
+    {"name": "accessibility", "applicable": true, "reason": "Internal tools must still meet accessibility requirements"},
+    {"name": "performance", "applicable": true, "reason": "Real-time data views must meet latency targets"},
+    {"name": "security", "applicable": true, "reason": "Operational data and controls require strict access control"},
+    {"name": "delivery-smoke", "applicable": true, "reason": "Deployment pipeline must verify basic functionality"}
+  ],
+  "task_bounds": {
+    "task-1": {"task_id": "task-1", "max_repair_attempts": 3, "stop_reason": "none"},
+    "task-2": {"task_id": "task-2", "max_repair_attempts": 2, "stop_reason": "repair_exhausted"},
+    "task-3": {"task_id": "task-3", "max_repair_attempts": 1, "stop_reason": "environment_blocked"}
+  },
+  "domain_reference": null,
+  "delivery_assumptions": ["database initialization via migration scripts"],
+  "stop_reasons": ["none", "verification_failed", "repair_exhausted", "environment_blocked"]
+}

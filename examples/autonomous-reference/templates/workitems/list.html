@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Work Items — Autonomous Reference</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <main>
+        <h1>Work Items</h1>
+        <div class="user-info">
+            Signed in as {{ user.username }}.
+            <form method="post" action="{% url 'logout' %}" class="logout-form">
+                {% csrf_token %}
+                <button type="submit">Sign out</button>
+            </form>
+        </div>
+
+        <form method="post" action="{% url 'workitems:list' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_title">Title</label>
+                <input
+                    type="text"
+                    name="title"
+                    id="id_title"
+                    maxlength="200"
+                    required
+                    {% if form.title.value %}value="{{ form.title.value }}"{% endif %}
+                    aria-describedby="{% if form.title.errors %}title-errors{% endif %}"
+                >
+                {% if form.title.errors %}
+                <p class="error" id="title-errors" role="alert">
+                    {% for error in form.title.errors %}{{ error }}{% endfor %}
+                </p>
+                {% endif %}
+            </div>
+            <button type="submit">Add item</button>
+        </form>
+
+        {% if items %}
+        <ul class="item-list">
+            {% for item in items %}
+            <li class="item {% if item.completed %}item--completed{% endif %}">
+                <span class="item__title">{{ item.title }}</span>
+                {% if item.completed %}
+                <span class="item__status">Completed</span>
+                {% else %}
+                <form method="post" action="{% url 'workitems:complete' item.pk %}" class="item__actions">
+                    {% csrf_token %}
+                    <button type="submit">Complete {{ item.title }}</button>
+                </form>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">No work items yet.</p>
+        {% endif %}
+    </main>
+</body>
+</html>

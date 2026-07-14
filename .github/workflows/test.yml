@@ -18,3 +18,24 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover -s tests -v
       - run: python -X utf8 webbuilder/scripts/check-state.py --help
+
+  reference-e2e:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install example requirements
+        run: pip install -r examples/autonomous-reference/requirements.txt
+      - name: Install Chromium browser
+        run: python -m playwright install chromium
+      - name: Run Django tests
+        working-directory: examples/autonomous-reference
+        run: python -m django test --settings=app.settings
+      - name: Run browser e2e tests
+        working-directory: examples/autonomous-reference
+        run: python -m unittest e2e.test_primary_flow -v

@@ -1,0 +1,29 @@
+{
+  "scenario_name": "content-application",
+  "capabilities": {
+    "ui": {"status": "required"},
+    "database": {"status": "required"},
+    "authentication": {"status": "required"},
+    "rbac": {"status": "required"},
+    "audit": {"status": "required"},
+    "docker": {"status": "required"},
+    "accessibility": {"status": "required"},
+    "performance": {"status": "required", "profile": "standard"},
+    "security": {"status": "required", "profile": "standard"}
+  },
+  "quality_domains": [
+    {"name": "functional", "applicable": true, "reason": "Content workflows must operate correctly"},
+    {"name": "ui", "applicable": true, "reason": "CMS requires a rich interactive editing interface"},
+    {"name": "accessibility", "applicable": true, "reason": "Editor and public views must be accessible"},
+    {"name": "performance", "applicable": true, "reason": "Media-heavy pages must load within performance budgets"},
+    {"name": "security", "applicable": true, "reason": "User-generated content requires input sanitization and auth"},
+    {"name": "delivery-smoke", "applicable": true, "reason": "Deployment pipeline must verify basic functionality"}
+  ],
+  "task_bounds": {
+    "task-1": {"task_id": "task-1", "max_repair_attempts": 3, "stop_reason": "none"},
+    "task-2": {"task_id": "task-2", "max_repair_attempts": 2, "stop_reason": "verification_failed"}
+  },
+  "domain_reference": null,
+  "delivery_assumptions": ["database initialization via migration scripts"],
+  "stop_reasons": ["none", "verification_failed", "needs_user_action"]
+}

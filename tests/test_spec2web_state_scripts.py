@@ -23,6 +23,7 @@ MULTI_AGENT_ORCHESTRATION_REFERENCE = ROOT / "webbuilder" / "references" / "mult
 INTERFACE_DESIGN_REFERENCE = ROOT / "webbuilder" / "references" / "interface-design.md"
 DELIVERY_CHECKLIST_REFERENCE = ROOT / "webbuilder" / "references" / "delivery-checklist.md"
 WORKTREE_MODE_REFERENCE = ROOT / "webbuilder" / "references" / "worktree-mode.md"
+INSTALL_REFERENCE = ROOT / "webbuilder" / "references" / "install.md"
 STATE_DIR_NAME = "webbuilder"
 
 from evidence_core import capture_command_evidence  # noqa: E402
@@ -876,9 +877,9 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             task_plan = state_dir / "task-plan.md"
             task_plan.write_text(
-                task_plan.read_text(encoding="utf-8").replace(
-                    "- status: pending", "- status: complete"
-                ),
+                task_plan.read_text(encoding="utf-8")
+                .replace("status: ready", "status: completed", 1)
+                .replace("- status: pending", "- status: complete"),
                 encoding="utf-8",
             )
 
@@ -1236,7 +1237,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
     def test_structure_validates_runtime_domains_and_journal_agreement(self) -> None:
         cases = (
             ("delivery_mode", "autonomous", "delivery_mode must be one of: guided"),
-            ("autonomy_scope", "confirmed", "autonomy_scope must be one of: unconfirmed"),
+            ("autonomy_scope", "confirmed", "autonomy_scope must be one of:"),
             ("stop_reason", "unsupported", "stop_reason must be one of:"),
             ("resume_checkpoint", "unknown", "resume_checkpoint must be none"),
             ("active_run_id", "RUN-001", "active_run_id must be null"),
@@ -1803,6 +1804,34 @@ class Spec2WebStateScriptTests(unittest.TestCase):
         self.assertIn("workload envelope", text.lower())
         self.assertIn("declared stop condition", text.lower())
 
+    def test_skill_contains_all_task6_autonomous_markers(self) -> None:
+        """SKILL.md must contain every Task 6 autonomous marker verbatim.
+
+        These markers are also checked by test_webbuilder_installation.py;
+        this test provides an independent contract assertion in the
+        spec2web state-script suite.
+        """
+        text = SKILL_FILE.read_text(encoding="utf-8")
+        task6_markers = [
+            "delivery_mode: guided | autonomous",
+            "/webbuilder start autonomous from requirements.md",
+            "--phase specification",
+            "scripts/approve-contract.py",
+            "scripts/check-host.py",
+            "--phase initialization",
+            "scripts/capture-evidence.py",
+            "--phase ui",
+            "scripts/transition-state.py",
+            "--resume",
+            "--phase delivery",
+        ]
+        missing = [m for m in task6_markers if m not in text]
+        self.assertEqual(
+            missing,
+            [],
+            f"SKILL.md is missing Task 6 autonomous markers: {missing}",
+        )
+
     def test_state_files_reference_documents_specification_phase(self) -> None:
         text = STATE_FILES_REFERENCE.read_text(encoding="utf-8")
 
@@ -1873,6 +1902,38 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 self.assertIn("check-host.py", text)
                 self.assertIn("--phase host", text)
                 self.assertIn(".webbuilder-artifacts/", text)
+
+    def test_install_reference_documents_autonomous_opt_in(self) -> None:
+        """install.md must document autonomous opt-in and guided default."""
+        text = INSTALL_REFERENCE.read_text(encoding="utf-8")
+        self.assertIn("/webbuilder start autonomous from requirements.md", text)
+        self.assertIn("guided mode is the default", text.lower())
+
+    def test_readmes_document_autonomous_opt_in(self) -> None:
+        """READMEs must document autonomous opt-in and guided default."""
+        for readme_path in (ROOT / "README.md", ROOT / "README_EN.md"):
+            with self.subTest(path=readme_path):
+                text = readme_path.read_text(encoding="utf-8")
+                self.assertIn("start autonomous from requirements.md", text)
+
+    def test_readmes_document_golden_django_profile(self) -> None:
+        """READMEs must reference the golden Django technology profile."""
+        for readme_path in (ROOT / "README.md", ROOT / "README_EN.md"):
+            with self.subTest(path=readme_path):
+                text = readme_path.read_text(encoding="utf-8")
+                self.assertIn("django-5.2-lts", text)
+
+    def test_delivery_checklist_documents_stop_reason_and_host_capability(self) -> None:
+        """Delivery checklist must document stop_reason and host capability checks."""
+        text = DELIVERY_CHECKLIST_REFERENCE.read_text(encoding="utf-8")
+        self.assertIn("stop_reason", text)
+        self.assertIn("host capability", text.lower())
+
+    def test_openai_yaml_documents_guided_default(self) -> None:
+        """openai.yaml must indicate guided mode as default."""
+        yaml_path = ROOT / "webbuilder" / "agents" / "openai.yaml"
+        text = yaml_path.read_text(encoding="utf-8")
+        self.assertIn("guided", text.lower())
 
 
 if __name__ == "__main__":
