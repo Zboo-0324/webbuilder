@@ -46,6 +46,10 @@ class LiveServerCleanStartTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.server.stop()
+        # Close all Django database connections so Windows can release the
+        # SQLite file lock before we move or delete it.
+        import django.db
+        django.db.connections.close_all()
         # Restore the original database (or remove any test-created artefact).
         if self._had_db and _DB_BACKUP.exists():
             shutil.move(str(_DB_BACKUP), str(_DB_PATH))
