@@ -12,6 +12,7 @@ The backup is always restored in ``tearDown`` so no local artifacts remain.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
 import unittest
@@ -81,6 +82,19 @@ class LiveServerCleanStartTest(unittest.TestCase):
             self.assertEqual(len(rows), 1, "reviewer account was not seeded")
         finally:
             conn.close()
+
+        # 3. Verify the reviewer password is correct using Django's own
+        #    password hasher so we don't duplicate hash logic.
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+        import django  # noqa: E402
+        django.setup()
+        from django.contrib.auth.models import User  # noqa: E402
+
+        reviewer = User.objects.get(username="reviewer")
+        self.assertTrue(
+            reviewer.check_password("review-pass"),
+            "reviewer password does not match expected 'review-pass'",
+        )
 
 
 if __name__ == "__main__":
