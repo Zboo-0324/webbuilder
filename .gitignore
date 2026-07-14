@@ -1,12 +1,14 @@
+# Publish only the WebBuilder Skill package and its bilingual README files.
+/*
+!/.gitignore
+!/README.md
+!/README_EN.md
+!/webbuilder/
+!/webbuilder/**
+
+# Keep local Skill runtime and development artifacts out of the public package.
 __pycache__/
 *.py[cod]
 .worktrees/
-
-# Local planning and project workspace files
-CLAUDE.md
-docs/
-loop engineering.md
-spec2web_product_design.md
-.webbuilder-artifacts/
 webbuilder/.transitions/
 webbuilder/.migration-backup-*/

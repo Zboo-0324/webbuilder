@@ -95,8 +95,8 @@ Install the whole `webbuilder/` folder, not only `SKILL.md`.
 ### Codex
 
 ```powershell
-git clone https://github.com/Zboo-0324/spec2web.git
-Set-Location spec2web
+git clone https://github.com/Zboo-0324/webbuilder.git
+Set-Location webbuilder
 
 $src = (Resolve-Path ".\webbuilder").Path
 $dst = "$env:USERPROFILE\.codex\skills\webbuilder"
@@ -110,8 +110,8 @@ Restart Codex after installation.
 ### Claude Code
 
 ```powershell
-git clone https://github.com/Zboo-0324/spec2web.git
-Set-Location spec2web
+git clone https://github.com/Zboo-0324/webbuilder.git
+Set-Location webbuilder
 
 $src = (Resolve-Path ".\webbuilder").Path
 $dst = "$env:USERPROFILE\.claude\skills\webbuilder"
@@ -125,8 +125,8 @@ Restart Claude Code after installation.
 ### Hermes
 
 ```powershell
-git clone https://github.com/Zboo-0324/spec2web.git
-Set-Location spec2web
+git clone https://github.com/Zboo-0324/webbuilder.git
+Set-Location webbuilder
 
 $src = (Resolve-Path ".\webbuilder").Path
 $dst = "$env:USERPROFILE\.hermes\skills\webbuilder"
