@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate Spec2Web state metadata to the V1.4 schema."""
+"""Migrate WebBuilder state metadata to the V1.4 schema."""
 
 from __future__ import annotations
 
@@ -391,11 +391,11 @@ def main() -> int:
     try:
         changed, backup_dir = migrate(Path(args.target).resolve(), args.dry_run)
     except (OSError, ValueError) as exc:
-        print(f"Spec2Web migration failed: {exc}")
+        print(f"WebBuilder migration failed: {exc}")
         return 1
 
     if not changed:
-        print(f"Spec2Web state already uses schema {SCHEMA_VERSION}.")
+        print(f"WebBuilder state already uses schema {SCHEMA_VERSION}.")
         return 0
 
     action = "would update" if args.dry_run else "updated"

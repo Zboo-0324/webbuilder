@@ -1,6 +1,6 @@
 # Loop Engineering
 
-Spec2Web uses Loop Engineering as a workflow discipline, not as a background runtime.
+WebBuilder uses Loop Engineering as a workflow discipline, not as a background runtime.
 
 ## Contents
 
@@ -12,7 +12,7 @@ Spec2Web uses Loop Engineering as a workflow discipline, not as a background run
 
 ## Core Rule
 
-Spec2Web owns the loop. Other tools, Skills, subagents, worktrees, pull requests, and shell commands can assist a step, but they do not own the project state or decide that the project is complete.
+WebBuilder owns the loop. Other tools, Skills, subagents, worktrees, pull requests, and shell commands can assist a step, but they do not own the project state or decide that the project is complete.
 
 The main session stays Orchestrator. Developer, Tester, Reviewer, and Repairer should be delegated to host-provided subagents or subsessions through PR/worktree handoff when available. Do not call Claude, external AI services, remote agent products, or another model provider. If delegation is not available, too coupled, or too small to justify, explicitly switch roles in the main session and record the fallback reason in `loop-state.md`.
 

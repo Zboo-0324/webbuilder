@@ -1,6 +1,6 @@
 # Role Protocol
 
-Spec2Web separates responsibilities around a fixed Orchestrator. The main session stays Orchestrator and selects `single`, `delegated`, or `parallel` execution from the host's current capabilities.
+WebBuilder separates responsibilities around a fixed Orchestrator. The main session stays Orchestrator and selects `single`, `delegated`, or `parallel` execution from the host's current capabilities.
 
 Use agents or subsessions exposed by the current Codex host, including host-authorized local or Codex cloud execution. Do not call third-party AI services, external agent products, or another model provider unless the user explicitly authorizes it.
 

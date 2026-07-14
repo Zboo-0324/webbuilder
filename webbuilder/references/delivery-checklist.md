@@ -45,7 +45,7 @@ The delivery gate verifies each manifest:
 Capture evidence with:
 
 ```text
-python <skill-root>/scripts/capture-evidence.py --target <project-root> --run-id DELIVERY --subject-id <domain> --attempt 1 --contract-revision <REV> -- <command>
+python <skill-root>/scripts/capture-evidence.py --target <project-root> --run DELIVERY --subject <domain> --attempt 1 --contract-revision <REV> -- <command>
 ```
 
 ## Redaction Policy

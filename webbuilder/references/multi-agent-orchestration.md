@@ -1,6 +1,6 @@
 # Adaptive Multi-Agent Orchestration
 
-Spec2Web uses host-provided agents adaptively. It remains a state-file workflow, not a background scheduler, worker pool, or autonomous merge service.
+WebBuilder uses host-provided agents adaptively. It remains a state-file workflow, not a background scheduler, worker pool, or autonomous merge service.
 
 ## Contents
 
@@ -139,7 +139,7 @@ Workers submit and stop. They do not integrate, expand scope, spawn unplanned wo
 Workers capture verification evidence using `capture-evidence.py` in their task worktree:
 
 ```text
-python <skill-root>/scripts/capture-evidence.py --target <project-root> --run-id <RUN-ID> --subject-id <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
+python <skill-root>/scripts/capture-evidence.py --target <project-root> --run <RUN-ID> --subject <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
 ```
 
 Evidence is stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` with project-relative paths. The manifest records the command, exit code, implementation fingerprint, artifact hashes, redaction status, and result.

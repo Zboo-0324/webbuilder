@@ -1,6 +1,6 @@
 # First-Principles and Adversarial Review
 
-Spec2Web uses four complementary controls to make delivery decisions reliable without turning every small change into a heavyweight ceremony:
+WebBuilder uses four complementary controls to make delivery decisions reliable without turning every small change into a heavyweight ceremony:
 
 1. First-principles analysis establishes the problem facts before solution design.
 2. Role-based review assigns explicit evaluation standards and decision rights.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Initialize lightweight Spec2Web state files."""
+"""Initialize lightweight WebBuilder state files."""
 
 from __future__ import annotations
 

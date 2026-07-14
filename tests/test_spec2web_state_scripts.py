@@ -1236,7 +1236,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
     def test_structure_validates_runtime_domains_and_journal_agreement(self) -> None:
         cases = (
-            ("delivery_mode", "autonomous", "delivery_mode must be one of: guided"),
+            ("delivery_mode", "unsupported", "delivery_mode must be one of: autonomous, guided"),
             ("autonomy_scope", "confirmed", "autonomy_scope must be one of:"),
             ("stop_reason", "unsupported", "stop_reason must be one of:"),
             ("resume_checkpoint", "unknown", "resume_checkpoint must be none"),
@@ -1257,6 +1257,25 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(expected, result.stdout)
+
+    def test_structure_accepts_autonomous_delivery_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.set_loop_values(tmp, delivery_mode="autonomous")
+
+            result = self.run_check(tmp)
+
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_structure_rejects_unsupported_delivery_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_init(tmp).returncode, 0)
+            self.set_loop_values(tmp, delivery_mode="bogus")
+
+            result = self.run_check(tmp)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("delivery_mode must be one of:", result.stdout)
 
     def test_delivery_rejects_unresolved_stop_reason(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1520,7 +1539,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
-            self.assertIn("Spec2Web state already uses schema 1.4", repeated.stdout)
+            self.assertIn("WebBuilder state already uses schema 1.4", repeated.stdout)
             self.assertEqual(len(list(state_dir.glob(".migration-backup-*"))), 1)
 
     def test_migrate_state_upgrades_v13_runtime_fields_transactionally(self) -> None:
@@ -1589,7 +1608,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
-            self.assertIn("Spec2Web state already uses schema 1.4", repeated.stdout)
+            self.assertIn("WebBuilder state already uses schema 1.4", repeated.stdout)
             self.assertEqual(len(list(state_dir.glob(".migration-backup-*"))), 1)
 
     def test_migrate_state_reports_missing_required_file(self) -> None:
@@ -1635,7 +1654,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
             self.assertIn("execution_mode: delegated", loop_state)
             self.assertIn("available_child_slots: 4", loop_state)
             self.assertIn("selected_workers: 1", loop_state)
-            self.assertIn("Spec2Web state already uses schema 1.4", result.stdout)
+            self.assertIn("WebBuilder state already uses schema 1.4", result.stdout)
 
     def test_migrate_state_rejects_unknown_explicit_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

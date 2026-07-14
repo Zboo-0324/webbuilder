@@ -4,7 +4,7 @@ workflow: spec2web
 schema_version: 1.4
 status: delivered
 current_phase: delivery
-delivery_mode: guided
+delivery_mode: autonomous
 autonomy_scope: confirmed_plan
 stop_reason: none
 resume_checkpoint: none

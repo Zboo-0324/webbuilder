@@ -16,11 +16,11 @@
 
 WebBuilder 是一个轻量级 Skill，用来指导 AI 编程智能体完成全栈 Web 项目的交付流程。
 
-它不是运行时、代码生成器、MCP Server、后台调度器或项目模板。Spec2Web 的重点是给智能体一套可恢复、可审查、可验证的工作流，让它从需求出发，逐步完成设计、拆解、开发、验证、修复和交付，同时保持方向、边界和项目记忆。
+它不是运行时、代码生成器、MCP Server、后台调度器或项目模板。WebBuilder 的重点是给智能体一套可恢复、可审查、可验证的工作流，让它从需求出发，逐步完成设计、拆解、开发、验证、修复和交付，同时保持方向、边界和项目记忆。
 
 ## 它能做什么
 
-Spec2Web 会帮助智能体：
+WebBuilder 会帮助智能体：
 
 - 在实现前读取项目规则
 - 建立需求基线
@@ -38,7 +38,7 @@ Spec2Web 会帮助智能体：
 
 ## 它不做什么
 
-Spec2Web 不会：
+WebBuilder 不会：
 
 - 根据一句提示生成完整应用
 - 提供全栈代码模板
@@ -130,7 +130,7 @@ robocopy $src $dst /MIR
 
 ## 使用方式
 
-当你希望启用 Spec2Web 工作流时，显式调用它：
+当你希望启用 WebBuilder 工作流时，显式调用它：
 
 ```text
 /webbuilder initialize this project
@@ -147,9 +147,9 @@ robocopy $src $dst /MIR
 也可以用自然语言：
 
 ```text
-use Spec2Web for this project
-start Spec2Web mode
-resume Spec2Web
+use WebBuilder for this project
+start WebBuilder mode
+resume WebBuilder
 ```
 
 WebBuilder 不应该自动接管普通编码任务。只有当用户显式要求，或项目中存在 active 的 `webbuilder/loop-state.md` 时，它才持续约束后续全栈开发工作。
@@ -217,7 +217,7 @@ python webbuilder/scripts/check-state.py --target . --phase structure
 捕获验证证据：
 
 ```powershell
-python webbuilder/scripts/capture-evidence.py --target . --run-id RUN-1 --subject-id TASK-001 --attempt 1 --contract-revision 1 -- python -m unittest
+python webbuilder/scripts/capture-evidence.py --target . --run RUN-1 --subject TASK-001 --attempt 1 --contract-revision 1 -- python -m unittest
 ```
 
 证据存储在 `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` 下，包含 manifest.json 和命令输出。所有证据自动脱敏，包括 Authorization 头、Cookie 和显式密钥。
@@ -238,7 +238,7 @@ python webbuilder/scripts/check-state.py --target . --phase delivery
 
 交付门禁验证每个必要验证域都有有效的证据 manifest，位于 `.webbuilder-artifacts/` 下。
 
-检查脚本提供八个阶段：
+检查脚本提供十一个阶段：
 
 - `structure`：schema、必要文件、智能体编排元数据、设计章节、任务契约和状态取值
 - `specification`：完整合约材料、无 `not recorded` 值、非空验收信号和工作流、系统设计与任务计划引用当前合约修订
@@ -248,6 +248,9 @@ python webbuilder/scripts/check-state.py --target . --phase delivery
 - `acceptance`：逐任务提交包、身份独立性、对抗性案例、分歧和 critical 控制证据
 - `integration`：已验收任务、集成策略与提交、主工作区复验证据
 - `delivery`：全部任务的验收和集成证据闭环、交付报告完成和终态工作流
+- `host`：合约中标记为 `required` 的宿主能力已可用且有证据
+- `initialization`：宿主能力满足已批准合约，`not_applicable` 能力可跳过
+- `ui`：合约声明 `ui` 为 `required` 时，验证 UI 证据 manifest 存在
 
 旧版本状态文件不会被初始化脚本覆盖。schema 1.4 新增引导交付与恢复元数据（`delivery_mode`、`autonomy_scope`、`stop_reason`、`resume_checkpoint`、`active_run_id`、`state_revision`、`pending_transition`）。迁移会保留内容并将 V1 到 V1.3 状态升级；缺少风险依据的任务会被标记为 `unclassified`，必须由 Planner 显式补充分类后才能执行。
 
@@ -297,7 +300,7 @@ Read State
 
 ## PR/Worktree 模式
 
-Spec2Web 对 Git 项目中的委派或并行任务使用 PR/worktree 交接：
+WebBuilder 对 Git 项目中的委派或并行任务使用 PR/worktree 交接：
 
 - 默认一次执行一个任务
 - 受控多 worker 模式只允许无冲突任务批次
@@ -309,9 +312,9 @@ Spec2Web 对 Git 项目中的委派或并行任务使用 PR/worktree 交接：
 - 每次集成后都需要在主工作区重新验证
 - 清理 worktree 前，必须将已接受的证据复制到规范状态和 `validation-log.md`
 
-Spec2Web 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
+WebBuilder 不提供自动 worker 池，也不提供无人值守的批量集成调度器。
 
-Spec2Web 允许使用当前 Codex 宿主提供的本地或 Codex 云端智能体；未经用户明确授权，不调用第三方 AI 服务或外部智能体产品。
+WebBuilder 允许使用当前 Codex 宿主提供的本地或 Codex 云端智能体；未经用户明确授权，不调用第三方 AI 服务或外部智能体产品。
 
 对于非 Git 项目或明确采用单会话回退的任务，使用 `handoff_mode: single_session` 和 `integration_strategy: direct_apply`；它表示改动已在主工作区中，由 Orchestrator 验收并完成主工作区验证，不虚构 merge 或 commit。
 

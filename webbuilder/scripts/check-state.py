@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Spec2Web state structure and phase readiness."""
+"""Validate WebBuilder state structure and phase readiness."""
 
 from __future__ import annotations
 
@@ -161,7 +161,7 @@ VALID_CHECKER_STRATEGIES = {
 }
 VALID_ACTIVE_CHECKER_STRATEGIES = VALID_CHECKER_STRATEGIES | {"mixed"}
 VALID_USER_APPROVALS = {"not_required", "required", "approved"}
-VALID_DELIVERY_MODES = {"guided"}
+VALID_DELIVERY_MODES = {"guided", "autonomous"}
 VALID_AUTONOMY_SCOPES = {"unconfirmed", "confirmed_plan"}
 VALID_STOP_REASONS = {
     "none",
@@ -1356,7 +1356,7 @@ def check_state(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate Spec2Web state structure and phase readiness."
+        description="Validate WebBuilder state structure and phase readiness."
     )
     parser.add_argument(
         "--target",
@@ -1406,12 +1406,12 @@ def main() -> int:
     )
 
     if errors:
-        print(f"Spec2Web {args.phase} phase check failed:")
+        print(f"WebBuilder {args.phase} phase check failed:")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print(f"Spec2Web {args.phase} phase check passed.")
+    print(f"WebBuilder {args.phase} phase check passed.")
     return 0
 
 

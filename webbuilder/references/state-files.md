@@ -505,7 +505,7 @@ Evidence manifests are stored under `.webbuilder-artifacts/` in the project root
 Use `capture-evidence.py` to capture verification evidence:
 
 ```text
-python <skill-root>/scripts/capture-evidence.py --target <project-root> --run-id <RUN-ID> --subject-id <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
+python <skill-root>/scripts/capture-evidence.py --target <project-root> --run <RUN-ID> --subject <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
 ```
 
 Each manifest records the command, exit code, cwd, implementation fingerprint (git SHA-256), artifact hashes, tool versions, redaction status, and result. All paths are project-relative. Workers capture evidence in their worktree; the Orchestrator promotes it to the main workspace before integration.

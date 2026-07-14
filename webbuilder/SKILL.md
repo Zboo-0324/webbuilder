@@ -54,13 +54,18 @@ Before every resume, recover the State Kernel and verify its structure before re
 
 ```text
 python <skill-root>/scripts/transition-state.py --target <project-root> --recover
-python <skill-root>/scripts/transition-state.py --target <project-root> --resume <checkpoint-id>
 python <skill-root>/scripts/check-state.py --target <project-root> --phase structure
 ```
 
 Recovery completes the one journaled transition when its files are still at known original or target contents. If it reports divergent state, stop for manual inspection; do not edit around the journal.
 
-The `--resume` event records a resume checkpoint in `loop-state.md` and clears `stop_reason`. Use it when the user explicitly resumes from a previously recorded checkpoint after a declared stop condition was resolved.
+After recovery succeeds, record the resume checkpoint:
+
+```text
+python <skill-root>/scripts/transition-state.py --target <project-root> --resume
+```
+
+The `--resume` event clears `resume_checkpoint` and `stop_reason` in `loop-state.md` and sets `status` to `active`. Use it when the user explicitly resumes after a declared stop condition was resolved.
 
 ## Hard Gates
 
@@ -306,7 +311,7 @@ For interface planning rules and templates, read `references/interface-design.md
 
 ## Loop Engineering Model
 
-Spec2Web owns the loop. The agent must repeatedly read state, select bounded work, execute, verify, review, repair or record, and update state. For the full protocol, read `references/loop-engineering.md`.
+WebBuilder owns the loop. The agent must repeatedly read state, select bounded work, execute, verify, review, repair or record, and update state. For the full protocol, read `references/loop-engineering.md`.
 
 ## Task Breakdown
 
@@ -433,14 +438,14 @@ Use the other helpers when available:
 - debugging and repair: `superpowers:systematic-debugging`
 - completion claims: `superpowers:verification-before-completion`
 
-All outputs from external Skills must be written back to Spec2Web state files. External Skills may not skip requirements baseline, task breakdown, validation logging, or delivery reporting.
+All outputs from external Skills must be written back to WebBuilder state files. External Skills may not skip requirements baseline, task breakdown, validation logging, or delivery reporting.
 
 ## Evidence Capture
 
 Before integration and delivery, capture machine-verifiable evidence of verification commands:
 
 ```text
-python <skill-root>/scripts/capture-evidence.py --target <project-root> --run-id <RUN-ID> --subject-id <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
+python <skill-root>/scripts/capture-evidence.py --target <project-root> --run <RUN-ID> --subject <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
 ```
 
 Evidence manifests are stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` with relative project paths. Each manifest records the command, exit code, implementation fingerprint, artifact hashes, and redaction status.

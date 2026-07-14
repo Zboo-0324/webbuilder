@@ -163,7 +163,7 @@ Use `integration_commit` sparingly. It is for Orchestrator-owned reconciliation 
 Workers capture evidence in their worktree using `capture-evidence.py`:
 
 ```text
-python <skill-root>/scripts/capture-evidence.py --target <worktree-path> --run-id <RUN-ID> --subject-id <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
+python <skill-root>/scripts/capture-evidence.py --target <worktree-path> --run <RUN-ID> --subject <TASK-ID> --attempt <N> --contract-revision <REV> -- <command>
 ```
 
 Evidence is stored under `.webbuilder-artifacts/<run-id>/<subject-id>/<attempt>/` with project-relative paths. Before worktree cleanup, the Orchestrator promotes evidence to the main workspace:
