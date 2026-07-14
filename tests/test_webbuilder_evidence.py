@@ -512,6 +512,71 @@ class EvidenceVerificationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     promote_artifacts(manifest_path, main)
 
+    def test_validation_log_append_preserves_manifest_verification(self) -> None:
+        """Capturing a manifest then appending a validation-log entry must not
+        break verify_manifest — validation-log writes are expected ledger
+        activity, not implementation changes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+
+            # Create minimal WebBuilder state and commit it.
+            state_dir = root / "webbuilder"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "loop-state.md").write_text(
+                "# Loop State\n\nstatus: in_progress\ncurrent_phase: execution\n",
+                encoding="utf-8",
+            )
+            (state_dir / "validation-log.md").write_text(
+                "# Validation Log\n\n## Entries\n\n",
+                encoding="utf-8",
+            )
+            src = root / "src" / "app.py"
+            src.parent.mkdir(parents=True, exist_ok=True)
+            src.write_text("# app\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "initial webbuilder state"],
+                cwd=root, check=True, capture_output=True,
+            )
+
+            # Capture one successful manifest.
+            manifest_path = capture_command_evidence(
+                root,
+                [sys.executable, "-c", "print('ok')"],
+                run_id="RUN-1",
+                subject_id="functional",
+                attempt=1,
+                contract_revision=1,
+                allowed_paths=["src/app.py"],
+            )
+            rel_manifest = manifest_path.relative_to(root).as_posix()
+
+            # Append a real PROJECT / functional validation-log entry.
+            entry = (
+                f"### PROJECT / functional\n\n"
+                f"- gate: functional\n"
+                f"- artifact_manifest: {rel_manifest}\n"
+            )
+            vlog = state_dir / "validation-log.md"
+            text = vlog.read_text(encoding="utf-8")
+            vlog.write_text(text.rstrip() + "\n\n" + entry + "\n", encoding="utf-8")
+
+            # Compute current git fingerprint and verify.
+            current_fingerprint = git_fingerprint(root)
+            errors = verify_manifest(
+                manifest_path,
+                project_root=root,
+                expected_contract_revision=1,
+                expected_fingerprint=current_fingerprint,
+            )
+            self.assertEqual(
+                errors, [],
+                f"verify_manifest should pass after validation-log append but got: {errors}",
+            )
+
 
 class EvidenceGateTests(unittest.TestCase):
     """RED-phase tests: host, initialization, and UI phases do not exist yet,
@@ -893,6 +958,13 @@ class EvidenceGateTests(unittest.TestCase):
         self._make_execution_ready()
         self._make_delivery_ready(contract=self.API_CONTRACT)
 
+        # Delivery requires top-level task-plan status to be completed.
+        tp_path = self.state_dir / "task-plan.md"
+        tp_text = tp_path.read_text(encoding="utf-8").replace(
+            "status: ready", "status: completed", 1,
+        )
+        tp_path.write_text(tp_text, encoding="utf-8")
+
         result = self._run_check("delivery")
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -901,6 +973,13 @@ class EvidenceGateTests(unittest.TestCase):
         self._write_contract(self.UI_CONTRACT)
         self._make_execution_ready()
         self._make_delivery_ready(contract=self.UI_CONTRACT)
+
+        # Delivery requires top-level task-plan status to be completed.
+        tp_path = self.state_dir / "task-plan.md"
+        tp_text = tp_path.read_text(encoding="utf-8").replace(
+            "status: ready", "status: completed", 1,
+        )
+        tp_path.write_text(tp_text, encoding="utf-8")
 
         result = self._run_check("delivery")
 

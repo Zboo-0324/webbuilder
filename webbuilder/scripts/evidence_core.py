@@ -53,7 +53,12 @@ def load_manifest(path: Path) -> dict[str, object]:
 
 
 def git_fingerprint(project_root: Path) -> str:
-    """SHA-256 over JSON containing ``git rev-parse HEAD`` and ``git status --porcelain``."""
+    """SHA-256 over JSON containing ``git rev-parse HEAD`` and ``git status --porcelain``.
+
+    Entries whose path lies under ``webbuilder/`` are excluded so that
+    routine workflow-state writes (validation-log, task-plan, etc.) do
+    not alter the implementation fingerprint.
+    """
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=project_root,
@@ -68,7 +73,22 @@ def git_fingerprint(project_root: Path) -> str:
         capture_output=True,
         check=True,
     ).stdout
-    payload = json.dumps({"head": head, "status": status}, sort_keys=True).encode("utf-8")
+    # Filter out entries whose path lies under webbuilder/ (workflow state,
+    # not implementation).  Handles plain and rename/copy porcelain records.
+    filtered_lines: list[str] = []
+    for line in status.splitlines():
+        if len(line) >= 4:  # minimum: "XY " + 1-char path
+            rest = line[3:]
+            if " -> " in rest:
+                orig, dest = rest.split(" -> ", 1)
+                skip = orig.startswith("webbuilder/") or dest.startswith("webbuilder/")
+            else:
+                skip = rest.startswith("webbuilder/")
+            if skip:
+                continue
+        filtered_lines.append(line)
+    filtered_status = "\n".join(filtered_lines)
+    payload = json.dumps({"head": head, "status": filtered_status}, sort_keys=True).encode("utf-8")
     return sha256_bytes(payload)
 
 

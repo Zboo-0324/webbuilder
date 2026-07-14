@@ -142,9 +142,17 @@ def checker_errors(
         root = Path(temporary)
         shadow_state = root / state_dir.name
         shutil.copytree(state_dir, shadow_state)
+        artifacts_dir = state_dir.parent / ".webbuilder-artifacts"
+        if artifacts_dir.is_dir():
+            shutil.copytree(artifacts_dir, root / ".webbuilder-artifacts")
         for name, text in updates.items():
             (shadow_state / name).write_text(text, encoding="utf-8", newline="\n")
-        return checker.check_state(root, phase=phase, task_id=task_id)
+        return checker.check_state(
+            root,
+            phase=phase,
+            task_id=task_id,
+            evidence_project_root=state_dir.parent,
+        )
 
 
 def require_gate(
@@ -156,7 +164,7 @@ def require_gate(
 ) -> None:
     errors = checker_errors(state_dir, updates, phase, task_id=task_id)
     if errors:
-        raise ValueError("; ".join(errors))
+        raise ValueError(f"{phase} phase check failed: " + "; ".join(errors))
 
 
 def require_artifact_readiness(state_dir: Path, filename: str, updated: str) -> None:
@@ -292,6 +300,13 @@ def lifecycle_updates(state_dir: Path, args: argparse.Namespace) -> dict[str, st
 
     if args.event == "resume":
         require_top_level_value(loop, "status", {"blocked", "paused"}, "loop-state.md")
+        req_text = (state_dir / "requirements-baseline.md").read_text(encoding="utf-8")
+        approved_rev = top_level_value(req_text, "approved_contract_revision")
+        contract_rev = top_level_value(req_text, "contract_revision") or "1"
+        if approved_rev is None or approved_rev == "null" or approved_rev != contract_rev:
+            raise ValueError(
+                "resume requires an approved contract matching the current revision"
+            )
         updated = set_top_level_value(loop, "status", "active")
         updated = set_top_level_value(updated, "stop_reason", "none")
         return {"loop-state.md": set_top_level_value(updated, "resume_checkpoint", "none")}
@@ -315,13 +330,33 @@ def main() -> int:
     parser.add_argument("--task", help="Task ID for a task lifecycle transition.")
     parser.add_argument("--reason", help="Declared reason for a block transition.")
     parser.add_argument("--set", dest="sets", action="append", default=[], help="file:key=value for descriptive content only")
+    parser.add_argument("--stop-reason", dest="stop_reason", help="Directly set stop_reason and block the loop.")
+    parser.add_argument("--checkpoint", help="Set resume_checkpoint on the loop state.")
+    parser.add_argument("--resume", action="store_true", help="Resume from a blocked or paused state.")
+    parser.add_argument("--deliver", action="store_true", help="Trigger the deliver lifecycle event.")
     args = parser.parse_args()
 
     if args.recover:
-        if args.event or args.sets or args.task or args.reason:
+        if args.event or args.sets or args.task or args.reason or args.stop_reason or args.checkpoint or args.resume or args.deliver:
             parser.error("--recover cannot be combined with transition arguments")
+    elif args.resume:
+        if args.event or args.sets or args.task or args.reason or args.stop_reason or args.checkpoint or args.deliver:
+            parser.error("--resume cannot be combined with transition arguments")
+    elif args.deliver:
+        if args.event or args.sets or args.task or args.reason or args.stop_reason or args.checkpoint:
+            parser.error("--deliver cannot be combined with transition arguments")
+    elif args.stop_reason:
+        if args.event:
+            parser.error("--stop-reason cannot be combined with --event")
+        if args.stop_reason not in STOP_REASONS:
+            allowed = ", ".join(sorted(STOP_REASONS))
+            parser.error(f"--stop-reason must be one of: {allowed}")
+        if not args.checkpoint:
+            parser.error("--stop-reason requires --checkpoint")
+    elif args.checkpoint:
+        parser.error("--checkpoint requires --stop-reason")
     elif not args.event:
-        parser.error("--event is required unless recovering")
+        parser.error("--event is required unless recovering or using --stop-reason")
 
     try:
         state_dir = resolve_state_dir(Path(args.target).resolve())
@@ -331,14 +366,30 @@ def main() -> int:
                 print(f"recovered: {transition_id}")
             return 0
 
-        if args.event == "edit-descriptive-content":
+        if args.resume:
+            updates = lifecycle_updates(state_dir, argparse.Namespace(event="resume", sets=[], task=None, reason=None))
+            event_name = "resume"
+        elif args.deliver:
+            updates = lifecycle_updates(state_dir, argparse.Namespace(event="deliver", sets=[], task=None, reason=None))
+            event_name = "deliver"
+        elif args.stop_reason:
+            loop_text = (state_dir / "loop-state.md").read_text(encoding="utf-8")
+            require_top_level_value(loop_text, "status", {"active", "paused"}, "loop-state.md")
+            updated = set_top_level_value(loop_text, "status", "blocked")
+            updated = set_top_level_value(updated, "stop_reason", args.stop_reason)
+            updated = set_top_level_value(updated, "resume_checkpoint", args.checkpoint)
+            updates = {"loop-state.md": updated}
+            event_name = "block"
+        elif args.event == "edit-descriptive-content":
             updates = descriptive_updates(state_dir, args.sets)
+            event_name = args.event
         else:
             updates = lifecycle_updates(state_dir, args)
+            event_name = args.event
         loop_text = (state_dir / "loop-state.md").read_text(encoding="utf-8")
         expected_revision = int(top_level_value(loop_text, "state_revision") or "0")
         transition_id = apply_transaction(
-            state_dir, args.event, updates, expected_revision=expected_revision
+            state_dir, event_name, updates, expected_revision=expected_revision
         )
     except (OSError, ValueError) as exc:
         print(f"State transition failed: {exc}")

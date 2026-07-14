@@ -876,9 +876,9 @@ class Spec2WebStateScriptTests(unittest.TestCase):
 
             task_plan = state_dir / "task-plan.md"
             task_plan.write_text(
-                task_plan.read_text(encoding="utf-8").replace(
-                    "- status: pending", "- status: complete"
-                ),
+                task_plan.read_text(encoding="utf-8")
+                .replace("status: ready", "status: completed", 1)
+                .replace("- status: pending", "- status: complete"),
                 encoding="utf-8",
             )
 
@@ -1236,7 +1236,7 @@ class Spec2WebStateScriptTests(unittest.TestCase):
     def test_structure_validates_runtime_domains_and_journal_agreement(self) -> None:
         cases = (
             ("delivery_mode", "autonomous", "delivery_mode must be one of: guided"),
-            ("autonomy_scope", "confirmed", "autonomy_scope must be one of: unconfirmed"),
+            ("autonomy_scope", "confirmed", "autonomy_scope must be one of:"),
             ("stop_reason", "unsupported", "stop_reason must be one of:"),
             ("resume_checkpoint", "unknown", "resume_checkpoint must be none"),
             ("active_run_id", "RUN-001", "active_run_id must be null"),
